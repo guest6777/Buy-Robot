@@ -2,11 +2,9 @@
 
 ---
 
-## ⚠️ Compatibility Notice
+## ✅ No Modifications Required
 
-This plugin is designed to work with **standard MvM missions**. Heavy mission-modifying plugins like **SiegMvM** that alter core MvM mechanics (wave spawning, enemy counts, upgrade systems) may cause **conflicts or unexpected behavior**.
-
-For best results, use with servers running **vanilla MvM missions** or missions that don't drastically modify the MvM game mode logic.
+This plugin works out of the box with **standard MvM missions** — no heavy game mode modifications like **SiegMvM** needed. You get the full Buy Robot experience without altering core MvM mechanics.
 
 ## ⚙️ Requirements (Defender Bots)
 
