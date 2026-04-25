@@ -2,6 +2,12 @@
 
 ---
 
+## ⚠️ Compatibility Notice
+
+This plugin is designed to work with **standard MvM missions**. Heavy mission-modifying plugins like **SiegMvM** that alter core MvM mechanics (wave spawning, enemy counts, upgrade systems) may cause **conflicts or unexpected behavior**.
+
+For best results, use with servers running **vanilla MvM missions** or missions that don't drastically modify the MvM game mode logic.
+
 ## ⚙️ Requirements (Defender Bots)
 
 | Requirement |
