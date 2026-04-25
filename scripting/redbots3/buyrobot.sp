@@ -4062,7 +4062,6 @@ void BuyRobot_ApplyModel(int client)
             case TFClass_Soldier:  modelPath = "models/bots/soldier_boss/bot_soldier_boss.mdl";
             case TFClass_DemoMan:  modelPath = "models/bots/demo_boss/bot_demo_boss.mdl";
             case TFClass_Pyro:     modelPath = "models/bots/pyro_boss/bot_pyro_boss.mdl";
-            case TFClass_Sniper:   modelPath = "models/bots/sniper_boss/bot_sniper_boss.mdl";
             default: return;
         }
     }
