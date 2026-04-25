@@ -1,18 +1,20 @@
-## ⚠️ Important: Materials Folder & FastDL
+## ⚠️ Important: Materials & Models Folders + FastDL
 
-Make sure to upload the **`materials`** folder to your server. Without it, some textures and icons may appear as **missing/error** (purple and black checkerboard).
+Make sure to upload the **`materials`** and **`models`** folders to your server. Without them, some textures, icons, and models may appear as **missing/error** (purple and black checkerboard, or giant ERROR signs).
 
-**Server path:** `tf/materials/`
+**Server paths:**
+- `tf/materials/`
+- `tf/models/`
 
 ### For FastDL (Recommended)
 
 If you want all players to download the files automatically when connecting:
 
-1. Upload the `materials` folder to your **FastDL server**
+1. Upload the `materials` and `models` folders to your **FastDL server**
 2. Make sure `sv_downloadurl` is set correctly in your `server.cfg`
-3. Players will download the textures automatically on join
+3. Players will download everything automatically on join
 
-> Without FastDL, players who don't have the files will see missing textures!
+> Without FastDL, players who don't have the files will see missing textures and models!
 
 ---
 
