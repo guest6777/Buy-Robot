@@ -2,11 +2,25 @@
 
 ---
 
+## ⚙️ Requirements (Defender Bots)
+
+| Requirement | Link |
+|-------------|------|
+| **TF2Attributes** | [Download](https://github.com/FlaminSarge/tf2attributes) |
+| **TF2 Econ Data** | [Download](https://github.com/nosoop/SM-TFEconData) |
+| **TF2 Utils** | [Download](https://github.com/nosoop/SM-TFUtils) |
+| **CBaseNPC** | [Download](https://github.com/TF2-DMB/CBaseNPC) |
+| **Actions** | [Download](https://forums.alliedmods.net/showthread.php?t=336374) |
+| **REST in Pawn (RIPExt)** | [Download](https://github.com/ErikMinekus/sm-ripext) |
+| **stocklib_officerspy** | Compilation only: [Download](https://github.com/OfficerSpy/SM_Stock_OfficerSpy) |
+
+---
+
 ## 📜 Credits
 
 | Plugin | Original Author |
 |--------|-----------------|
-| **Defender Bots** | Officer Spy |
+| **Defender Bots** | [Officer Spy](https://github.com/OfficerSpy/TF2-MvM-Defender-TFBots) |
 | **Buy Robot** | guest6777 |
 
 > Modified & Enhanced with **DeepSeek AI** 🤖
