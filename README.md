@@ -6,13 +6,13 @@
 
 | Requirement | Link |
 |-------------|------|
-| **TF2Attributes** | [Download](https://github.com/FlaminSarge/tf2attributes) |
-| **TF2 Econ Data** | [Download](https://github.com/nosoop/SM-TFEconData) |
-| **TF2 Utils** | [Download](https://github.com/nosoop/SM-TFUtils) |
-| **CBaseNPC** | [Download](https://github.com/TF2-DMB/CBaseNPC) |
-| **Actions** | [Download](https://forums.alliedmods.net/showthread.php?t=336374) |
-| **REST in Pawn (RIPExt)** | [Download](https://github.com/ErikMinekus/sm-ripext) |
-| **stocklib_officerspy** | Compilation only: [Download](https://github.com/OfficerSpy/SM_Stock_OfficerSpy) |
+| **TF2Attributes** | [Here](https://github.com/FlaminSarge/tf2attributes) |
+| **TF2 Econ Data** | [Here](https://github.com/nosoop/SM-TFEconData) |
+| **TF2 Utils** | [Here](https://github.com/nosoop/SM-TFUtils) |
+| **CBaseNPC** | [Here](https://github.com/TF2-DMB/CBaseNPC) |
+| **Actions** | [Here](https://forums.alliedmods.net/showthread.php?t=336374) |
+| **REST in Pawn (RIPExt)** | [Here](https://github.com/ErikMinekus/sm-ripext) |
+| **stocklib_officerspy** | Compilation only: [Here](https://github.com/OfficerSpy/SM_Stock_OfficerSpy) |
 
 ---
 
