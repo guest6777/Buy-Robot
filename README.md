@@ -71,7 +71,7 @@
 | Command | Description |
 |---------|-------------|
 | `!addbots <number>` | Add bots manually |
-| `!purgebots [1]` | Remove all bots (1 = stop managing) |
+| `!purgebots` | Remove all bots |
 | `!botmanager_stop` | Stop managing bots |
 | `!view_bot_upgrades <player> [slot]` | View bot upgrades |
 
