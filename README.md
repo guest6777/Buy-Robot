@@ -2,6 +2,24 @@
 
 ---
 
+## ⚠️ Important: Materials Folder & FastDL
+
+Make sure to upload the **`materials`** folder to your server. Without it, some textures and icons may appear as **missing/error** (purple and black checkerboard).
+
+**Server path:** `tf/materials/`
+
+### For FastDL (Recommended)
+
+If you want all players to download the files automatically when connecting:
+
+1. Upload the `materials` folder to your **FastDL server**
+2. Make sure `sv_downloadurl` is set correctly in your `server.cfg`
+3. Players will download the textures automatically on join
+
+> Without FastDL, players who don't have the files will see missing textures!
+
+---
+
 ## ✅ No Modifications Required
 
 This plugin works out of the box with **standard MvM missions** — no heavy game mode modifications like **SiegMvM** needed. You get the full Buy Robot experience without altering core MvM mechanics.
