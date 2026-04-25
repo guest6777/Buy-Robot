@@ -20,8 +20,8 @@
 
 | Plugin | Original Author |
 |--------|-----------------|
-| **Defender Bots** | [Officer Spy](https://github.com/OfficerSpy/TF2-MvM-Defender-TFBots) |
-| **Buy Robot** | guest6777 |
+| **Defender Bots** | [Officer Spy](https://github.com/OfficerSpy) |
+| **Buy Robot** | [guest6777](https://github.com/guest6777) |
 
 > Modified & Enhanced with **DeepSeek AI** 🤖
 
