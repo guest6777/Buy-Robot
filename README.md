@@ -1,7 +1,3 @@
-# Defender Bots & Buy Robot - Commands Tutorial
-
----
-
 ## ⚠️ Important: Materials Folder & FastDL
 
 Make sure to upload the **`materials`** folder to your server. Without it, some textures and icons may appear as **missing/error** (purple and black checkerboard).
@@ -48,6 +44,8 @@ This plugin works out of the box with **standard MvM missions** — no heavy gam
 > Modified & Enhanced with **DeepSeek AI** 🤖
 
 ---
+
+# Defender Bots & Buy Robot - Commands Tutorial
 
 ## 🎮 Player Commands
 
