@@ -2045,7 +2045,7 @@ void RemoveAllDefenderBots(char[] reason = "", bool bDanceInstead = false)
     {
         if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
         {
-            KickClient(i, "Fantasma no espectador removido");
+            KickClient(i, "");
         }
     }
 }
@@ -2252,7 +2252,7 @@ void AddDefenderTFBot(int count, char[] class, char[] team = "red", char[] diffi
 			
 			if (StrContains(name, "TFBot") != -1 || StrContains(name, TFBOT_IDENTITY_NAME) != -1)
 			{
-				KickClient(i, "Fantasma no spectator removido");
+				KickClient(i, "");
 			}
 		}
 	}
@@ -2268,7 +2268,7 @@ void AddRandomDefenderBots(int amount)
 	{
 		if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
 		{
-			KickClient(i, "Fantasma no spectator removido");
+			KickClient(i, "");
 		}
 	}
 	
@@ -2284,7 +2284,7 @@ void AddBotsWithPresetTeamComp(int count = 6, int teamType = 0)
 	{
 		if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
 		{
-			KickClient(i, "Fantasma no spectator removido");
+			KickClient(i, "");
 		}
 	}
 	
