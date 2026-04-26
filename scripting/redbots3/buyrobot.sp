@@ -402,10 +402,10 @@ void BuyRobot_Init()
     g_cvBuyUseCustomLoadouts = CreateConVar("sm_buyrobot_use_custom_loadouts", "0", "Allow purchased robots to use custom loadouts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuyUseUpgrades = CreateConVar("sm_buyrobot_use_upgrades", "0", "Allow purchased robots to buy upgrades (Mann Co.)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuySaxtonAI = CreateConVar("sm_buyrobot_saxton_ai", "0", "Enable Saxton Hale AI to send reinforcements based on team strength (Mann Co.)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_cvBuySaxtonDelay = CreateConVar("sm_buyrobot_saxton_delay", "20.0", "Delay in seconds between Saxton Hale AI reinforcements", FCVAR_NOTIFY, true, 0.0, true, 120.0);
+    g_cvBuySaxtonDelay = CreateConVar("sm_buyrobot_saxton_delay", "20.0", "Delay in seconds between Saxton Hale AI reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
     g_cvBuyRemoveUnitsBots = CreateConVar("sm_buyrobot_remove_units_bots", "1", "Remove Saxton Hale AI bots when wave completes or fails", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvGrayMannAI = CreateConVar("sm_buyrobot_gray_mann_ai", "0", "Enable Gray Mann AI to send reinforcements based on team strength (Invaders)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_cvGrayMannDelay = CreateConVar("sm_buyrobot_gray_mann_delay", "20.0", "Delay in seconds between Gray Mann reinforcements", FCVAR_NOTIFY, true, 10.0, true, 120.0);
+    g_cvGrayMannDelay = CreateConVar("sm_buyrobot_gray_mann_delay", "20.0", "Delay in seconds between Gray Mann reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
     g_cvBuySpawnDefaultColor = CreateConVar("sm_buyrobot_spawn_default_color", "0", "Default spawn color (0=Red, 1=Blue)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvMaxBossPerTeam = CreateConVar("sm_buyrobot_max_boss_per_team", "1", "Maximum Boss robots allowed per team", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     g_cvMaxWaitingQueueTotal = CreateConVar("sm_buyrobot_max_queue_total", "50", "Maximum total robots in waiting queue", FCVAR_NOTIFY, true, 1.0, true, 100.0);
@@ -3346,7 +3346,7 @@ public Action BuyRobot_SetupBot_NoOwner(Handle timer, DataPack pack)
 
 if (team == TFTeam_Blue)
 {
-    CreateTimer(0.01, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+    CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
     
     bool useUpgrades = g_cvBuyUseUpgrades.BoolValue;
@@ -3523,7 +3523,7 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
 
 if (team == TFTeam_Blue)
 {
-    CreateTimer(0.01, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+    CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
     
     bool useUpgrades = g_cvBuyUseUpgrades.BoolValue;
