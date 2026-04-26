@@ -26,8 +26,7 @@ If you want all players to download the files automatically when connecting:
 | **Spawn Points** | `addons/sourcemod/configs/defenderbots/buyrobot/spawns_<map>.cfg` |
 | **Points Data** | `addons/sourcemod/configs/defenderbots/buyrobot/points.txt` |
 | **Bot Names** | `addons/sourcemod/configs/defenderbots/bot_names.txt` |
-| **Sniper Spots** | `addons/sourcemod/configs/defenderbots/map/<map>.cfg` |
-| **Engineer Nest Spots** | `addons/sourcemod/configs/defenderbots/map/<map>.cfg` |
+| **Sniper + Engineer Nest Spots** | `addons/sourcemod/configs/defenderbots/map/<map>.cfg` |
 | **Teleporter Spots** | `addons/sourcemod/configs/defenderbots/teleporter/<map>.cfg` |
 | **Commands List** | `addons/sourcemod/configs/defenderbots/commands.txt` |
 
