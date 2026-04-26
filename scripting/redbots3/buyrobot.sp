@@ -4971,6 +4971,9 @@ void BuyRobot_ValidateBots()
 
 public Action Timer_SaxtonAI(Handle timer)
 {
+    if (!g_cvBuySaxtonAI.BoolValue)
+        return Plugin_Stop;
+    
     if (GameRules_GetRoundState() != RoundState_RoundRunning)
         return Plugin_Stop;
     
@@ -4981,10 +4984,10 @@ public Action Timer_SaxtonAI(Handle timer)
 
 public Action Timer_GrayMann(Handle timer)
 {
-    if (GameRules_GetRoundState() != RoundState_RoundRunning)
-        return Plugin_Continue;
-    
     if (!g_cvGrayMannAI.BoolValue)
+        return Plugin_Continue;
+
+    if (GameRules_GetRoundState() != RoundState_RoundRunning)
         return Plugin_Continue;
     
     CheckAndSendGrayMann();
