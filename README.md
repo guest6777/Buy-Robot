@@ -18,9 +18,26 @@ If you want all players to download the files automatically when connecting:
 
 ---
 
+## 📁 Configuration Files
+
+| File | Path |
+|------|------|
+| **Blacklist** | `addons/sourcemod/configs/defenderbots/buyrobot/blacklist.txt` |
+| **Spawn Points** | `addons/sourcemod/configs/defenderbots/buyrobot/spawns_<map>.cfg` |
+| **Points Data** | `addons/sourcemod/configs/defenderbots/buyrobot/points.txt` |
+| **Bot Names** | `addons/sourcemod/configs/defenderbots/bot_names.txt` |
+| **Sniper Spots** | `addons/sourcemod/configs/defenderbots/map/<map>.cfg` |
+| **Engineer Nest Spots** | `addons/sourcemod/configs/defenderbots/map/<map>.cfg` |
+| **Teleporter Spots** | `addons/sourcemod/configs/defenderbots/teleporter/<map>.cfg` |
+| **Commands List** | `addons/sourcemod/configs/defenderbots/commands.txt` |
+
+---
+
 ## ✅ No Modifications Required
 
 This plugin works out of the box with **standard MvM missions** — no heavy game mode modifications like **SiegMvM** needed. You get the full Buy Robot experience without altering core MvM mechanics.
+
+---
 
 ## ⚙️ Requirements (Defender Bots)
 
@@ -136,12 +153,4 @@ This plugin works out of the box with **standard MvM missions** — no heavy gam
 | `!savespawns` | Save spawn points to file |
 | `!loadspawns` | Load spawn points from file |
 
-## 💡 Quick Tips
-
-- Use `!shopstatus` to see available bot slots
-- Use `!points` to check your currency  
-- Use `!top10` to see who has the most points
-- Use `!votebots` to start a bot game
-- Use `!requestbot scout` to request a specific class
-- Use `!myrobots` to manage your purchased robots
-- Use `!cancelqueue` to remove waiting robots
+---
