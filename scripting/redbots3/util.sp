@@ -2164,21 +2164,7 @@ stock float NormalizeAngle(float fAngle)
 
 stock bool IsValidClientIndex(int client)
 {
-    return (client > 0 && client <= MaxClients && IsClientInGame(client) && IsValidEntity(client));
-}
-
-stock bool IsValidClientForAction(int client)
-{
-    if (client <= 0 || client > MaxClients)
-        return false;
-    
-    if (!IsClientInGame(client))
-        return false;
-    
-    if (!IsValidEntity(client))
-        return false;
-    
-    return true;
+	return client > 0 && client <= MaxClients && IsClientInGame(client);
 }
 
 stock bool IsBaseBoss(int entity)

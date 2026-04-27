@@ -113,8 +113,8 @@ ArrayList g_adtChosenBotClasses;
 bool g_bBotClassesLocked;
 int g_iUIDBotSummoner = 0;
 bool g_bAllowBotTeamRedo;
-static bool g_bSpotsGlobalVisible = false;
-static Handle g_hGlobalSpotTimer = INVALID_HANDLE;
+bool g_bSpotsGlobalVisible = false;
+Handle g_hGlobalSpotTimer = INVALID_HANDLE;
 ArrayList g_hTeleporterEntranceSpots = null;
 char g_sTeleporterConfigFile[PLATFORM_MAX_PATH];
 int g_iBotEntranceSpot[MAXPLAYERS + 1];
@@ -138,7 +138,7 @@ bool g_bHeavyLocked3[MAXPLAYERS+1];
 bool g_bPyroLocked1[MAXPLAYERS+1];
 bool g_bPyroLocked2[MAXPLAYERS+1];
 
-static int g_iDefenderBotHatIndex[MAXPLAYERS + 1];
+int g_iDefenderBotHatIndex[MAXPLAYERS + 1];
 
 static float g_flLastNestMoveTime[MAXPLAYERS + 1];
 #define NEST_MOVE_COOLDOWN 30.0
@@ -571,11 +571,6 @@ public Action Timer_RemoveDropIfFromPurchasedRobot(Handle timer, any entref)
     }
     
     return Plugin_Stop;
-}
-
-stock bool IsValidClient(int client)
-{
-    return (client > 0 && client <= MaxClients && IsClientInGame(client));
 }
 
 /* NOTE: This forward is not consistent with nextbot functionalities such as Action::Update
@@ -2709,9 +2704,6 @@ public Action Command_AddSniperHit(int client, int args)
 
 public Action Command_AddNestSpot(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     float pos[3];
     GetClientAbsOrigin(client, pos);
     
@@ -2727,9 +2719,6 @@ public Action Command_AddNestSpot(int client, int args)
 
 public Action Command_ListNestSpots(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     InitializeEngineerSpotSystem();
     
     int count = GetEngineerSpotCount();
@@ -2858,9 +2847,6 @@ public Action Timer_GlobalUpdateSpots_(Handle timer)
 
 public Action Command_SpotInfo(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     float eyePos[3], eyeAng[3];
     GetClientEyePosition(client, eyePos);
     GetClientEyeAngles(client, eyeAng);
@@ -3103,9 +3089,6 @@ void GetRandomTeleporterEntranceSpot(float pos[3])
 
 public Action Command_AddTeleporterEntrance(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     if (!CheckCommandAccess(client, "sm_addteleporter", ADMFLAG_GENERIC))
     {
         ReplyToCommand(client, "You don't have access to this command.");
@@ -3133,9 +3116,6 @@ public Action Command_AddTeleporterEntrance(int client, int args)
 
 public Action Command_ListTeleporterSpots(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     InitializeTeleporterSystem();
     
     int count = g_hTeleporterEntranceSpots.Length;
@@ -3160,9 +3140,6 @@ public Action Command_ListTeleporterSpots(int client, int args)
 
 public Action Command_RemoveTeleporterSpot(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     if (args < 1)
     {
         ReplyToCommand(client, "\x07FF4500[Teleporter]\x01 Usage: sm_removeteleporter <id>");
@@ -3189,9 +3166,6 @@ public Action Command_RemoveTeleporterSpot(int client, int args)
 
 public Action Command_ClearTeleporterSpots(int client, int args)
 {
-    if (!IsValidClient(client))
-        return Plugin_Handled;
-    
     InitializeTeleporterSystem();
     g_hTeleporterEntranceSpots.Clear();
     SaveTeleporterSpots();

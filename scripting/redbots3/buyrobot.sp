@@ -1,71 +1,69 @@
-static ConVar g_cvBuyEnable;
-static ConVar g_cvBuyMaxBots;
-static ConVar g_cvBuyPointsPerKill;
-static ConVar g_cvBuyRobotSounds;
-static ConVar g_cvBuyRobotFootsteps;
-static ConVar g_cvBuyDefaultLives;
-static ConVar g_cvBuyNotifyLives;
-static ConVar g_cvBuyNotifyKills;
-static ConVar g_cvBuyAllowDefenderBots;
-static ConVar g_cvBuyMaxPerBot;
-static ConVar g_cvBuyInterval;
-static ConVar g_cvBuyNotifyDefenderPurchase;
-static ConVar g_cvBuyNotifyHumanPurchase;
-static ConVar g_cvBuyKickOnWaveEnd;
-static ConVar g_cvBuyWaveBonusEnable;
-static ConVar g_cvBuyWaveBonusChance;
-static ConVar g_cvBuyWaveBonusCount;
-static ConVar g_cvBuyUseCustomLoadouts;
-static ConVar g_cvBuyUseUpgrades;
-static ConVar g_cvBuySaxtonAI;
-static ConVar g_cvBuySaxtonDelay;
-static ConVar g_cvGrayMannAI;
-static ConVar g_cvGrayMannDelay;
-static ConVar g_cvBuyRemoveUnitsBots;
-static ConVar g_cvMaxBossPerTeam;
-static ConVar g_cvMaxWaitingQueueTotal;
-static ConVar g_cvMaxWaitingQueuePerPlayer;
-static ConVar g_cvBuyEnableHats;
-static ConVar g_cvBuyEnableDefenderHats;
-static ConVar g_cvPriceSoldier;
-static ConVar g_cvPricePyro;
-static ConVar g_cvPriceDemoman;
-static ConVar g_cvPriceHeavy;
-static ConVar g_cvPriceEngineer;
-static ConVar g_cvPriceMedic;
-static ConVar g_cvPriceSpy;
-static ConVar g_cvPriceScout;
-static ConVar g_cvPriceSniper;
+ConVar g_cvBuyEnable;
+ConVar g_cvBuyMaxBots;
+ConVar g_cvBuyPointsPerKill;
+ConVar g_cvBuyRobotSounds;
+ConVar g_cvBuyRobotFootsteps;
+ConVar g_cvBuyDefaultLives;
+ConVar g_cvBuyNotifyLives;
+ConVar g_cvBuyNotifyKills;
+ConVar g_cvBuyAllowDefenderBots;
+ConVar g_cvBuyMaxPerBot;
+ConVar g_cvBuyInterval;
+ConVar g_cvBuyNotifyDefenderPurchase;
+ConVar g_cvBuyNotifyHumanPurchase;
+ConVar g_cvBuyKickOnWaveEnd;
+ConVar g_cvBuyWaveBonusEnable;
+ConVar g_cvBuyWaveBonusChance;
+ConVar g_cvBuyWaveBonusCount;
+ConVar g_cvBuyUseCustomLoadouts;
+ConVar g_cvBuyUseUpgrades;
+ConVar g_cvBuySaxtonAI;
+ConVar g_cvBuySaxtonDelay;
+ConVar g_cvGrayMannAI;
+ConVar g_cvGrayMannDelay;
+ConVar g_cvBuyRemoveUnitsBots;
+ConVar g_cvMaxBossPerTeam;
+ConVar g_cvMaxWaitingQueueTotal;
+ConVar g_cvMaxWaitingQueuePerPlayer;
+ConVar g_cvBuyEnableHats;
+ConVar g_cvBuyEnableDefenderHats;
+ConVar g_cvPriceSoldier;
+ConVar g_cvPricePyro;
+ConVar g_cvPriceDemoman;
+ConVar g_cvPriceHeavy;
+ConVar g_cvPriceEngineer;
+ConVar g_cvPriceMedic;
+ConVar g_cvPriceSpy;
+ConVar g_cvPriceScout;
+ConVar g_cvPriceSniper;
 
-static Handle g_hBuyAutoTimer = INVALID_HANDLE;
-static Handle g_hValidationTimer = INVALID_HANDLE;
-static Handle hEquipWearable = null;
-static ArrayList g_hBuyQueue;
-static ArrayList g_hBuyRobotHats;
-static bool bWaveBeginProcessed = false;
-static float fLastWaveBeginTime = 0.0;
-static float g_flLastSendTime = 0.0;
-static int g_iWaveBonusCounter = 0;
-static int g_iWaveFailCounterTick;
-static Handle g_hGrayMannTimer = INVALID_HANDLE;
-static float g_flLastSendTime2 = 0.0;
-static int g_iWaveBonusCounter2 = 0;
-static float g_flLastAnySendTime = 0.0;
+Handle g_hBuyAutoTimer = INVALID_HANDLE;
+Handle g_hValidationTimer = INVALID_HANDLE;
+Handle hEquipWearable = null;
+ArrayList g_hBuyQueue;
+ArrayList g_hBuyRobotHats;
+bool bWaveBeginProcessed = false;
+float fLastWaveBeginTime = 0.0;
+float g_flLastSendTime = 0.0;
+int g_iWaveBonusCounter = 0;
+int g_iWaveFailCounterTick;
+Handle g_hGrayMannTimer = INVALID_HANDLE;
+float g_flLastSendTime2 = 0.0;
+int g_iWaveBonusCounter2 = 0;
+float g_flLastAnySendTime = 0.0;
 
-static int g_iBuyPlayerPoints[MAXPLAYERS + 1];
-static int g_iBuyRobotLives[MAXPLAYERS + 1];
-static int g_iBuyRobotOwner[MAXPLAYERS + 1];
-static float g_flBuyLastBotBuyTime[MAXPLAYERS + 1];
-static float m_flNextSnipeFireTime[MAXPLAYERS + 1];
-static int g_iCreateCount = 0;
+int g_iBuyPlayerPoints[MAXPLAYERS + 1];
+int g_iBuyRobotLives[MAXPLAYERS + 1];
+int g_iBuyRobotOwner[MAXPLAYERS + 1];
+float g_flBuyLastBotBuyTime[MAXPLAYERS + 1];
+float m_flNextSnipeFireTime[MAXPLAYERS + 1];
 
-static Handle g_hSpawnCheckTimer = INVALID_HANDLE;
-static float g_flLastPosition[MAXPLAYERS + 1][3];
-static float g_flStuckTime[MAXPLAYERS + 1];
+Handle g_hSpawnCheckTimer = INVALID_HANDLE;
+float g_flLastPosition[MAXPLAYERS + 1][3];
+float g_flStuckTime[MAXPLAYERS + 1];
 
-static int g_iBuyRobotHatIndex[MAXPLAYERS + 1];
-static int g_iDefenderBotHatIndex[MAXPLAYERS + 1];
-static int g_iWaitingForRename[MAXPLAYERS + 1];
+int g_iBuyRobotHatIndex[MAXPLAYERS + 1];
+int g_iWaitingForRename[MAXPLAYERS + 1];
 
 static const char g_sPointsFile[] = "configs/defenderbots/buyrobot/points.txt";
 static KeyValues g_hPointsKV = null;
@@ -83,10 +81,9 @@ static KeyValues g_hPointsKV = null;
 #define BUY_PRICE_GIANT_MULT   3.0
 #define BUY_PRICE_BOSS_MULT    15.0
 
-#define MAX_CREATES_PER_FRAME  999
 #define VALIDATION_INTERVAL    30.0
 
-static ArrayList g_hWaitingQueue = null;
+ArrayList g_hWaitingQueue = null;
 
 static ArrayList g_hSpawnPoints;
 static ArrayList g_hSpawnAngles;
@@ -97,14 +94,14 @@ static TFTeam g_tempAddTeam;
 static int g_iSelectedSpawnType = SPAWN_TYPE_RED;
 static ConVar g_cvBuySpawnDefaultColor;
 
-static bool g_bSaxtonVoteOnCooldown = false;
-static bool g_bGrayVoteOnCooldown = false;
+bool g_bSaxtonVoteOnCooldown = false;
+bool g_bGrayVoteOnCooldown = false;
 #define VOTE_COOLDOWNAI 60.0
 
-static float g_flLastTeleportTime[MAXPLAYERS + 1];
+float g_flLastTeleportTime[MAXPLAYERS + 1];
 #define TELEPORT_COOLDOWN 30.0
 
-static bool g_bRobotFrozen[MAXPLAYERS + 1];
+bool g_bRobotFrozen[MAXPLAYERS + 1];
 
 static ArrayList m_adtBlacklist = null;
 static char g_sBlacklistFile[PLATFORM_MAX_PATH];
@@ -154,11 +151,6 @@ bool IsHalloweenActive()
     return (GetConVarInt(FindConVar("tf_forced_holiday")) == 2);
 }
 
-stock bool BuyRobot_IsValidClient(int client)
-{
-    return (client > 0 && client <= MaxClients && IsClientInGame(client) && !IsClientSourceTV(client) && !IsClientReplay(client));
-}
-
 void BuyRobot_LoadAllPoints()
 {
     if (g_hPointsKV != null)
@@ -187,7 +179,7 @@ void BuyRobot_SaveAllPoints()
     
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (BuyRobot_IsValidClient(i) && !IsFakeClient(i))
+        if (IsValidClientIndex(i) && !IsFakeClient(i))
         {
             char steamId[32];
             GetClientAuthId(i, AuthId_Steam2, steamId, sizeof(steamId));
@@ -235,7 +227,7 @@ void BuyRobot_SaveAllPoints()
 
 void BuyRobot_LoadPlayerPoints(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || IsFakeClient(client))
+    if (!IsValidClientIndex(client) || IsFakeClient(client))
         return;
     
     if (g_hPointsKV == null)
@@ -260,7 +252,7 @@ void BuyRobot_LoadPlayerPoints(int client)
 
 void BuyRobot_SavePlayerPoints(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || IsFakeClient(client))
+    if (!IsValidClientIndex(client) || IsFakeClient(client))
         return;
     
     if (g_hPointsKV == null)
@@ -299,7 +291,7 @@ void BuyRobot_ResetAllPointsData()
     
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (BuyRobot_IsValidClient(i) && !IsFakeClient(i))
+        if (IsValidClientIndex(i) && !IsFakeClient(i))
         {
             g_iBuyPlayerPoints[i] = 0;
         }
@@ -524,7 +516,7 @@ void BuyRobot_Init()
 
 public Action Command_ListRobots(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     int totalRobots = 0;
@@ -649,7 +641,7 @@ public Action Command_ListRobots(int client, int args)
 
 public Action Command_RobotInfo(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     int target = GetClientAimTarget(client, true);
@@ -1123,7 +1115,7 @@ public int MenuHandler_AdminRename(Menu menu, MenuAction action, int param1, int
 
 public Action Command_MyRobots(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     int ownedCount = 0;
@@ -1942,7 +1934,7 @@ public Action BuyRobot_Command(int client, int args)
 
 public Action BuyRobot_ShowPoints(int client, int args)
 {
-    if (BuyRobot_IsValidClient(client))
+    if (IsValidClientIndex(client))
     {
         PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You have \x07FFD700%d\x01 points!", g_iBuyPlayerPoints[client]);
     }
@@ -1951,14 +1943,14 @@ public Action BuyRobot_ShowPoints(int client, int args)
 
 public Action Command_ShowTopPoints(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client)) return Plugin_Handled;
+    if (!IsValidClientIndex(client)) return Plugin_Handled;
     BuyRobot_ShowTop10(client);
     return Plugin_Handled;
 }
 
 public Action Command_ShowRank(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client)) return Plugin_Handled;
+    if (!IsValidClientIndex(client)) return Plugin_Handled;
     
     int rank = BuyRobot_GetPlayerRank(client);
     int total = BuyRobot_GetTotalPlayersWithPoints();
@@ -2046,7 +2038,7 @@ public int MenuHandler_VoteGray(Menu menu, MenuAction action, int param1, int pa
 
 public Action Command_VoteSaxton(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
     {
         ReplyToCommand(client, "\x0732CD32[Buy Robot]\x01 You cannot use this command.");
         return Plugin_Handled;
@@ -2099,7 +2091,7 @@ public Action Command_VoteSaxton(int client, int args)
 
 public Action Command_VoteGray(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
     {
         ReplyToCommand(client, "\x0732CD32[Buy Robot]\x01 You cannot use this command.");
         return Plugin_Handled;
@@ -2164,7 +2156,7 @@ public Action Timer_ResetGrayCooldown(Handle timer)
 
 public Action Command_BotHelp(int client, int args)
 {
-    if (!IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     Menu menu = new Menu(MenuHandler_HelpMain);
@@ -2332,7 +2324,7 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
 
 public Action Command_ShowQueue(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     if (g_hWaitingQueue == null || g_hWaitingQueue.Length == 0)
@@ -2355,7 +2347,7 @@ public Action Command_ShowQueue(int client, int args)
 
 public Action Command_CancelQueue(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return Plugin_Handled;
     
     int waitingCount = GetWaitingCountForPlayer(client);
@@ -2642,7 +2634,7 @@ public int MenuHandler_ServerInfo(Menu menu, MenuAction action, int param1, int 
 
 public Action BuyRobot_ShopStatus(int client, int args)
 {
-    if (BuyRobot_IsValidClient(client))
+    if (IsValidClientIndex(client))
     {
         if (!g_cvBuyKickOnWaveEnd.BoolValue)
         {
@@ -2745,7 +2737,7 @@ public Action BuyRobot_GivePoints(int client, int args)
 	BuyRobot_SaveAllPoints();
         LogAction(client, targets[i], "\"%L\" gave %d points to \"%L\"", client, points, targets[i]);
         
-        if (targets[i] != client && BuyRobot_IsValidClient(targets[i]))
+        if (targets[i] != client && IsValidClientIndex(targets[i]))
         {
             PrintToChat(targets[i], "\x0732CD32[Buy Robot]\x01 You received \x07FFD700%d\x01 points!", points);
         }
@@ -2760,7 +2752,7 @@ public Action BuyRobot_ResetPoints(int client, int args)
 {
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (BuyRobot_IsValidClient(i) && !IsFakeClient(i))
+        if (IsValidClientIndex(i) && !IsFakeClient(i))
         {
             g_iBuyPlayerPoints[i] = 0;
             BuyRobot_SavePlayerPoints(i);
@@ -2979,7 +2971,7 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
         teamInt = StringToInt(parts[4]);
         TFTeam team = view_as<TFTeam>(teamInt);
         
-        if (!BuyRobot_IsValidClient(client)) return 0;
+        if (!IsValidClientIndex(client)) return 0;
         if (TF2_GetClientTeam(client) != team)
         {
             PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You must be on this team!");
@@ -3149,7 +3141,7 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
     }
     else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
     {
-        if (BuyRobot_IsValidClient(param1)) 
+        if (IsValidClientIndex(param1)) 
             BuyRobot_ShowMainMenu(param1, TF2_GetClientTeam(param1));
     }
     else if (action == MenuAction_End)
@@ -3161,21 +3153,6 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
 
 void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] prefix = "", bool bSaxtonAI = false, TFTeam team = TFTeam_Red)
 {
-    g_iCreateCount++;
-    
-    if (g_iCreateCount > MAX_CREATES_PER_FRAME)
-    {
-        DataPack pack = new DataPack();
-        pack.WriteString(class);
-        pack.WriteCell(buyer);
-        pack.WriteCell(lives);
-        pack.WriteString(prefix);
-        pack.WriteCell(bSaxtonAI);
-        pack.WriteCell(view_as<int>(team));
-        CreateTimer(0.1, BuyRobot_RetryCreate, pack, TIMER_FLAG_NO_MAPCHANGE);
-        return;
-    }
-    
     char command[256];
     char botName[64];
     
@@ -3189,9 +3166,7 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     else
     {
         if (strlen(prefix) > 0)
-        {
             Format(botName, sizeof(botName), "%s", prefix);
-        }
         else
         {
             char className[32];
@@ -3218,187 +3193,19 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     ServerCommand(command);
     
     DataPack pack = new DataPack();
-    
-    if (buyer > 0)
-        pack.WriteCell(GetClientUserId(buyer));
-    else
-        pack.WriteCell(0);
-    
+    pack.WriteCell(buyer);
     pack.WriteString(class);
     pack.WriteCell(lives);
     pack.WriteString(prefix);
     pack.WriteCell(bSaxtonAI);
     pack.WriteCell(view_as<int>(team));
     CreateTimer(0.1, BuyRobot_SetupBot, pack, TIMER_FLAG_NO_MAPCHANGE);
-    
-    CreateTimer(0.1, BuyRobot_ResetCreateCount, _, TIMER_FLAG_NO_MAPCHANGE);
-}
-
-public Action BuyRobot_SetupBot_NoOwner(Handle timer, DataPack pack)
-{
-    pack.Reset();
-    int buyerId = pack.ReadCell();
-    char class[32];
-    pack.ReadString(class, sizeof(class));
-    int lives = pack.ReadCell();
-    char prefix[32];
-    pack.ReadString(prefix, sizeof(prefix));
-    bool bSaxtonAI = pack.ReadCell();
-    int teamInt = pack.ReadCell();
-    TFTeam team = view_as<TFTeam>(teamInt);
-    delete pack;
-    
-    char searchTag[32];
-    Format(searchTag, sizeof(searchTag), "BOT_BONUS");
-    
-    int found = -1;
-    int attempts = 0;
-    int maxAttempts = 5;
-    
-    while (found == -1 && attempts < maxAttempts)
-    {
-        for (int i = 1; i <= MaxClients; i++)
-        {
-            if (IsClientInGame(i) && IsFakeClient(i) && !IsClientSourceTV(i))
-            {
-                char name[64];
-                GetClientName(i, name, sizeof(name));
-                if (StrContains(name, searchTag) != -1)
-                {
-                    found = i;
-                    break;
-                }
-            }
-        }
-        
-        if (found == -1)
-        {
-            attempts++;
-            if (attempts < maxAttempts)
-            {
-                DataPack retryPack = new DataPack();
-                retryPack.WriteCell(buyerId);
-                retryPack.WriteString(class);
-                retryPack.WriteCell(lives);
-                retryPack.WriteString(prefix);
-                retryPack.WriteCell(bSaxtonAI);
-                retryPack.WriteCell(teamInt);
-                CreateTimer(0.5, BuyRobot_SetupBot_NoOwner, retryPack, TIMER_FLAG_NO_MAPCHANGE);
-                return Plugin_Stop;
-            }
-        }
-    }
-    
-    if (found == -1) return Plugin_Stop;
-    
-    int client = found;
-    
-    g_bBuyIsPurchasedRobot[client] = true;
-    g_iBuyRobotLives[client] = lives;
-    g_iBuyRobotOwner[client] = 0;
-    
-    TF2_ChangeClientTeam(client, team);
-    
-    if (IsHalloweenActive())
-    {
-        BuyRobot_EquipZombieCosmetic(client);
-    }
-    else
-    {
-        BuyRobot_ApplyModel(client);
-    }
-
-    BuyRobot_EquipHat(client);
-    
-    char className[32];
-    BuyRobot_GetClassName(class, className, sizeof(className));
-    
-    if (strlen(prefix) > 0 && StrEqual(prefix, "Giant"))
-    {
-        char giantName[64];
-        Format(giantName, sizeof(giantName), "Giant %s", className);
-        SetClientName(client, giantName);
-    }
-    else if (strlen(prefix) > 0 && StrEqual(prefix, "Boss"))
-    {
-        char bossName[64];
-        Format(bossName, sizeof(bossName), "Boss %s", className);
-        SetClientName(client, bossName);
-    }
-    else if (strlen(prefix) > 0)
-    {
-        SetClientName(client, prefix);
-    }
-    else
-    {
-        SetClientName(client, className);
-    }
-    
-    bool isGiant = (strlen(prefix) > 0 && StrContains(prefix, "Giant") != -1);
-    if (isGiant)
-        BuyRobot_ApplyGiantAttributes(client);
-    
-    bool isBoss = (strlen(prefix) > 0 && StrContains(prefix, "Boss") != -1);
-    if (isBoss)
-        BuyRobot_ApplyBossAttributes(client);
-    
-    TF2_RespawnPlayer(client);
-
-if (team == TFTeam_Blue)
-{
-    CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-}
-    
-    bool useUpgrades = g_cvBuyUseUpgrades.BoolValue;
-    if (!useUpgrades || isGiant || isBoss || (team == TFTeam_Blue))
-    {
-        BuyRobot_ApplyAttributes(client);
-        RemovePowerUpCanteen(client);
-    }
-    
-    BuyRobot_ApplyInfiniteMetal(client);
-
-    if (TF2_GetPlayerClass(client) == TFClass_Engineer && TF2_GetClientTeam(client) == TFTeam_Red)
-    {
-        CreateTimer(0.5, Timer_InfiniteSentryAmmo, GetClientUserId(client), TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-    }
-    
-    return Plugin_Stop;
-}
-
-public Action BuyRobot_RetryCreate(Handle timer, DataPack pack)
-{
-    pack.Reset();
-    char class[32];
-    pack.ReadString(class, sizeof(class));
-    int buyer = pack.ReadCell();
-    int lives = pack.ReadCell();
-    char prefix[32];
-    pack.ReadString(prefix, sizeof(prefix));
-    bool bSaxtonAI = pack.ReadCell();
-    int teamInt = pack.ReadCell();
-    TFTeam team = view_as<TFTeam>(teamInt);
-    delete pack;
-    
-    if (BuyRobot_IsValidClient(buyer))
-    {
-        BuyRobot_CreateBot(class, buyer, lives, prefix, bSaxtonAI, team);
-    }
-    
-    return Plugin_Stop;
-}
-
-public Action BuyRobot_ResetCreateCount(Handle timer)
-{
-    g_iCreateCount = 0;
-    return Plugin_Stop;
 }
 
 public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
 {
     pack.Reset();
-    int buyerId = pack.ReadCell();
-    int buyer = GetClientOfUserId(buyerId);
+    int buyer = pack.ReadCell();
     char class[32];
     pack.ReadString(class, sizeof(class));
     int lives = pack.ReadCell();
@@ -3408,19 +3215,6 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     int teamInt = pack.ReadCell();
     TFTeam team = view_as<TFTeam>(teamInt);
     delete pack;
-    
-    if (buyerId != 0 && (!BuyRobot_IsValidClient(buyer) || buyer == 0)) 
-    {
-        DataPack noOwnerPack = new DataPack();
-        noOwnerPack.WriteCell(0);
-        noOwnerPack.WriteString(class);
-        noOwnerPack.WriteCell(lives);
-        noOwnerPack.WriteString(prefix);
-        noOwnerPack.WriteCell(bSaxtonAI);
-        noOwnerPack.WriteCell(teamInt);
-        CreateTimer(0.1, BuyRobot_SetupBot_NoOwner, noOwnerPack, TIMER_FLAG_NO_MAPCHANGE);
-        return Plugin_Stop;
-    }
     
     char searchTag[32];
     if (buyer == 0)
@@ -3430,7 +3224,7 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     
     int found = -1;
     int attempts = 0;
-    int maxAttempts = 5;
+    int maxAttempts = 10;
     
     while (found == -1 && attempts < maxAttempts)
     {
@@ -3454,13 +3248,13 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
             if (attempts < maxAttempts)
             {
                 DataPack retryPack = new DataPack();
-                retryPack.WriteCell(buyerId);
+                retryPack.WriteCell(buyer);
                 retryPack.WriteString(class);
                 retryPack.WriteCell(lives);
                 retryPack.WriteString(prefix);
                 retryPack.WriteCell(bSaxtonAI);
                 retryPack.WriteCell(teamInt);
-                CreateTimer(0.5, BuyRobot_SetupBot, retryPack, TIMER_FLAG_NO_MAPCHANGE);
+                CreateTimer(0.1, BuyRobot_SetupBot, retryPack, TIMER_FLAG_NO_MAPCHANGE);
                 return Plugin_Stop;
             }
         }
@@ -3521,10 +3315,10 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     
     TF2_RespawnPlayer(client);
 
-if (team == TFTeam_Blue)
-{
-    CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-}
+    if (team == TFTeam_Blue)
+    {
+        CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+    }
     
     bool useUpgrades = g_cvBuyUseUpgrades.BoolValue;
     if (!useUpgrades || isGiant || isBoss || (team == TFTeam_Blue))
@@ -3558,7 +3352,7 @@ public Action Timer_AddToWaveBar(Handle timer, int userid)
 
 void BuyRobot_ApplyInfiniteMetal(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     TFClassType class = TF2_GetPlayerClass(client);
     if (class == TFClass_Engineer)
@@ -3573,7 +3367,7 @@ void BuyRobot_ApplyInfiniteMetal(int client)
 
 void BuyRobot_ApplyAttributes(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     char clientName[64];
     GetClientName(client, clientName, sizeof(clientName));
@@ -3615,7 +3409,7 @@ void BuyRobot_ApplyAttributes(int client)
 
 void BuyRobot_ApplyGiantAttributes(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     CreateTimer(0.1, Timer_ApplyGiantScale, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
     CreateTimer(0.1, Timer_ApplyGiantStats, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
@@ -3624,7 +3418,7 @@ void BuyRobot_ApplyGiantAttributes(int client)
 public Action Timer_ApplyGiantScale(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client)) return Plugin_Stop;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client)) return Plugin_Stop;
     
     SetEntPropFloat(client, Prop_Send, "m_flModelScale", 1.8);
     UpdatePlayerHitbox(client, 1.8);
@@ -3635,7 +3429,7 @@ public Action Timer_ApplyGiantScale(Handle timer, int userid)
 public Action Timer_ApplyGiantStats(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
     TFClassType class = TF2_GetPlayerClass(client);
     
@@ -3796,7 +3590,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
 
 void BuyRobot_ApplyBossAttributes(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     CreateTimer(0.1, Timer_ApplyGiantScale, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
     CreateTimer(0.1, Timer_ApplyBossStats, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
@@ -3805,7 +3599,7 @@ void BuyRobot_ApplyBossAttributes(int client)
 public Action Timer_ApplyBossStats(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
     TFClassType class = TF2_GetPlayerClass(client);
     
@@ -3982,7 +3776,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
 public Action Timer_ApplyBossEffects(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client)) return Plugin_Stop;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client)) return Plugin_Stop;
     
     TF2_AddCondition(client, TFCond_CritCanteen, 999.0);
     TF2_AddCondition(client, TFCond_DefenseBuffNoCritBlock, 999.0);
@@ -4007,7 +3801,7 @@ int BuyRobot_CountOwnedBots(int owner)
 public Action Timer_ApplyBuildingGiant(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client))
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client))
         return Plugin_Stop;
     
     char clientName[64];
@@ -4043,7 +3837,7 @@ public Action Timer_ApplyBuildingGiant(Handle timer, int userid)
 
 void BuyRobot_ApplyModel(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     TFClassType class = TF2_GetPlayerClass(client);
     char modelPath[PLATFORM_MAX_PATH];
@@ -4089,7 +3883,7 @@ void BuyRobot_ApplyModel(int client)
 
 void BuyRobot_EquipZombieCosmetic(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client])
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client])
         return;
     
     int ent = -1;
@@ -4266,7 +4060,7 @@ public Action BuyRobot_GiantSoundHook(int clients[64], int &numClients, char sou
 public Action Timer_PlayGiantLoop(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
     TFClassType class = TF2_GetPlayerClass(client);
     
@@ -4297,7 +4091,7 @@ public Action BuyRobot_KickBot(Handle timer, DataPack pack)
     int victim = GetClientOfUserId(pack.ReadCell());
     delete pack;
     
-    if (BuyRobot_IsValidClient(victim) && g_bBuyIsPurchasedRobot[victim])
+    if (IsValidClientIndex(victim) && g_bBuyIsPurchasedRobot[victim])
     {
         if (IsPlayerAlive(victim))
         {
@@ -4404,7 +4198,7 @@ public Action Timer_ReapplyWeaponsAttributes(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);
     
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client))
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client] || !IsPlayerAlive(client))
         return Plugin_Stop;
     
     char clientName[64];
@@ -4461,7 +4255,7 @@ void BuyRobot_ReapplyWeaponsAttributes(int client)
 
 void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
@@ -4484,7 +4278,7 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
 
 void BuyRobot_ReapplyBossWeaponsAttributes(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
@@ -4627,7 +4421,7 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
         }
     }
     
-    if (attacker > 0 && attacker <= MaxClients && attacker != victim && BuyRobot_IsValidClient(attacker))
+    if (attacker > 0 && attacker <= MaxClients && attacker != victim && IsValidClientIndex(attacker))
     {
         if (g_bBuyIsPurchasedRobot[attacker])
         {
@@ -4818,7 +4612,7 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
             
             int owner = g_iBuyRobotOwner[victim];
             
-            if (g_cvBuyNotifyLives.BoolValue && BuyRobot_IsValidClient(owner))
+            if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
             {
                 if (isVictimBoss)
                     PrintToChat(owner, "\x0732CD32[Buy Robot]\x01 Your robot \x07FF1493%s\x01 was destroyed and removed!", victimName);
@@ -4843,7 +4637,7 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
                 RemoveRobotFromWaveBar(victim);
             }
             
-            if (g_cvBuyNotifyLives.BoolValue && BuyRobot_IsValidClient(owner))
+            if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
             {
                 PrintToChat(owner, "\x0732CD32[Buy Robot]\x01 Your robot \x078B008B%s\x01 has run out of lives and will be removed!", victimName);
             }
@@ -4854,7 +4648,7 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
         }
         else
         {
-            if (g_cvBuyNotifyLives.BoolValue && BuyRobot_IsValidClient(owner))
+            if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
             {
                 PrintToChat(owner, "\x0732CD32[Buy Robot]\x01 Your robot \x078B008B%s\x01 lost a life! Remaining: \x07FFD700%d\x01 | Respawning in 5 seconds...", victimName, g_iBuyRobotLives[victim]);
             }
@@ -5767,7 +5561,7 @@ public Action BuyRobot_AutoBuy(Handle timer)
     
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (!BuyRobot_IsValidClient(i) || !IsFakeClient(i)) continue;
+        if (!IsValidClientIndex(i) || !IsFakeClient(i)) continue;
         
         if (!g_bIsDefenderBot[i] || g_bBuyIsPurchasedRobot[i]) continue;
         
@@ -5906,7 +5700,7 @@ void BuyRobot_DoBotBuy(int bot, int category)
 
 bool BuyRobot_CanUseMenu(int client)
 {
-    if (!BuyRobot_IsValidClient(client)) return false;
+    if (!IsValidClientIndex(client)) return false;
     
     if (!IsFakeClient(client)) return true;
     
@@ -6208,9 +6002,9 @@ void BuyRobot_ForceDownloadMaterials()
 
 void BuyRobot_SetMission(int client, int mission)
 {
-    if (!BuyRobot_IsValidClient(client) || !g_bBuyIsPurchasedRobot[client]) return;
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
-    static Handle hSetMission = null;
+    Handle hSetMission = null;
     
     if (hSetMission == null)
     {
@@ -6267,8 +6061,6 @@ void BuyRobot_Cleanup()
         g_iBuyRobotLives[i] = 0;
         g_iBuyRobotOwner[i] = 0;
     }
-    
-    g_iCreateCount = 0;
 }
 
 public Action Timer_RespawnAtSpawnPoint(Handle timer, int userid)
@@ -6279,7 +6071,7 @@ public Action Timer_RespawnAtSpawnPoint(Handle timer, int userid)
     TF2_RespawnPlayer(client);
     
     int owner = g_iBuyRobotOwner[client];
-    if (g_cvBuyNotifyLives.BoolValue && BuyRobot_IsValidClient(owner))
+    if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
     {
         char robotName[64];
         GetClientName(client, robotName, sizeof(robotName));
@@ -6680,7 +6472,7 @@ public int MenuHandler_AddRobotsClass(Menu menu, MenuAction action, int param1, 
     }
     else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
     {
-        if (BuyRobot_IsValidClient(param1))
+        if (IsValidClientIndex(param1))
             ShowAddRobotsMainMenu(param1);
     }
     else if (action == MenuAction_End)
@@ -6966,7 +6758,7 @@ public Action Timer_CreateSpawnModels(Handle timer)
 
 public Action Command_AddSpawn(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client)) return Plugin_Handled;
+    if (!IsValidClientIndex(client)) return Plugin_Handled;
     
     Menu menu = new Menu(MenuHandler_SpawnType);
     menu.SetTitle("Choose Spawn Point Color");
@@ -7024,7 +6816,7 @@ public int MenuHandler_SpawnType(Menu menu, MenuAction action, int param1, int p
 
 public Action Command_ListSpawns(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client)) return Plugin_Handled;
+    if (!IsValidClientIndex(client)) return Plugin_Handled;
     
     char mapName[64];
     GetCurrentMap(mapName, sizeof(mapName));
@@ -7057,7 +6849,7 @@ public Action Command_ListSpawns(int client, int args)
 
 public Action Command_RemoveSpawn(int client, int args)
 {
-    if (!BuyRobot_IsValidClient(client)) return Plugin_Handled;
+    if (!IsValidClientIndex(client)) return Plugin_Handled;
     
     if (args < 1)
     {
@@ -7138,7 +6930,7 @@ void UpdateSystemTime()
 
 void RemovePowerUpCanteen(int client)
 {
-    if (!IsValidClient(client) || !g_bBuyIsPurchasedRobot[client])
+    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client])
         return;
     
     int actionSlot = GetPlayerWeaponSlot(client, TFWeaponSlot_Item1);
@@ -7399,7 +7191,7 @@ void BuyRobot_ShowTop10(int client)
 
 int BuyRobot_GetPlayerRank(int client)
 {
-    if (!BuyRobot_IsValidClient(client) || IsFakeClient(client))
+    if (!IsValidClientIndex(client) || IsFakeClient(client))
         return 0;
     
     if (g_hPointsKV == null)
@@ -7620,7 +7412,7 @@ void BuyRobot_PopulateHatsList()
 
 void BuyRobot_RemoveWearables(int client)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return;
     
     int ent = -1;
@@ -7648,7 +7440,7 @@ void BuyRobot_RemoveWearables(int client)
 
 void BuyRobot_EquipHat(int client)
 {
-    if (!BuyRobot_IsValidClient(client))
+    if (!IsValidClientIndex(client))
         return;
     
     bool isPurchased = g_bBuyIsPurchasedRobot[client];
