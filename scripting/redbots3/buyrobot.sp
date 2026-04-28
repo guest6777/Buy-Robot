@@ -4007,7 +4007,6 @@ public Action BuyRobot_SoundHook_Death(int clients[64], int &numClients, char sa
     
     return Plugin_Continue;
 }
-
 public Action BuyRobot_GiantSoundHook(int clients[64], int &numClients, char sound[PLATFORM_MAX_PATH], int &Ent, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
     if (Ent < 1 || Ent > MaxClients || !IsClientInGame(Ent)) 
@@ -4026,10 +4025,10 @@ public Action BuyRobot_GiantSoundHook(int clients[64], int &numClients, char sou
     
     if (TF2_GetPlayerClass(client) == TFClass_Medic || TF2_GetPlayerClass(client) == TFClass_Spy || TF2_GetPlayerClass(client) == TFClass_Engineer || TF2_GetPlayerClass(client) == TFClass_Sniper)
     {
-        if (StrContains(sound, "vo/", false) != -1)
-        {
-            return Plugin_Stop;
-        }
+    	if (StrContains(sound, "vo/", false) != -1)
+    	{
+       	    return Plugin_Stop;
+    	}
     }
     
     if (StrContains(sound, "vo/", false) == -1 || StrContains(sound, "announcer", false) != -1) return Plugin_Continue;
