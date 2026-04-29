@@ -787,7 +787,7 @@ public Action Command_AdminRobots(int client, int args)
     }
     
     Menu menu = new Menu(MenuHandler_AdminRobots);
-    menu.SetTitle("Admin: All Robots (%d total, %d AI)\n ", totalRobots, totalAIBots);
+    menu.SetTitle("Admin: All Robots (%d Total, %d AI)\n ", totalRobots, totalAIBots);
     
     char line[256];
     char info[16];
