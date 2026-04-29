@@ -582,10 +582,18 @@ public Action Command_ListRobots(int client, int args)
         char ownerName[64] = "Server";
         char ownerDisplay[96];
         
-        if (owner > 0 && IsClientInGame(owner))
+        if (g_bBuyIsAIRobot[i])
+        {
+            if (team == TFTeam_Red)
+                Format(ownerDisplay, sizeof(ownerDisplay), "Saxton Hale");
+            else if (team == TFTeam_Blue)
+                Format(ownerDisplay, sizeof(ownerDisplay), "Gray Mann");
+            else
+                Format(ownerDisplay, sizeof(ownerDisplay), "Unknown");
+        }
+        else if (owner > 0 && IsClientInGame(owner))
         {
             GetClientName(owner, ownerName, sizeof(ownerName));
-            
             if (IsFakeClient(owner) && g_bIsDefenderBot[owner])
                 Format(ownerDisplay, sizeof(ownerDisplay), "[BOT] %s", ownerName);
             else
@@ -593,7 +601,7 @@ public Action Command_ListRobots(int client, int args)
         }
         else
         {
-            ownerDisplay = "Server";
+            Format(ownerDisplay, sizeof(ownerDisplay), "Server");
         }
         
         char status[8];
@@ -648,13 +656,13 @@ public Action Command_RobotInfo(int client, int args)
     
     if (target <= 0 || target > MaxClients || !IsClientInGame(target))
     {
-        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Look at a purchased robot to see its info!");
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Look at a robot to see its info!");
         return Plugin_Handled;
     }
     
     if (!g_bBuyIsPurchasedRobot[target])
     {
-        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This is not a purchased robot!");
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This is not a robot!");
         return Plugin_Handled;
     }
     
@@ -683,9 +691,18 @@ public Action Command_RobotInfo(int client, int args)
         else
             Format(ownerDisplay, sizeof(ownerDisplay), "%s", ownerName);
     }
+    else if (g_bBuyIsAIRobot[target])
+    {
+        if (team == TFTeam_Red)
+            Format(ownerDisplay, sizeof(ownerDisplay), "Saxton Hale");
+        else if (team == TFTeam_Blue)
+            Format(ownerDisplay, sizeof(ownerDisplay), "Gray Mann");
+        else
+            Format(ownerDisplay, sizeof(ownerDisplay), "Unknown");
+    }
     else
     {
-        ownerDisplay = "Server";
+        Format(ownerDisplay, sizeof(ownerDisplay), "Server");
     }
     
     char teamName[32];
@@ -705,7 +722,7 @@ public Action Command_RobotInfo(int client, int args)
     Panel panel = new Panel();
     
     char title[128];
-    Format(title, sizeof(title), "%sPurchased Robot Info", giantText);
+    Format(title, sizeof(title), "%sRobot Info", giantText);
     panel.SetTitle(title);
     
     char line[128];
@@ -751,21 +768,26 @@ public Action Command_AdminRobots(int client, int args)
     }
     
     int totalRobots = 0;
+    int totalAIBots = 0;
     
     for (int i = 1; i <= MaxClients; i++)
     {
         if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i])
+        {
             totalRobots++;
+            if (g_bBuyIsAIRobot[i])
+                totalAIBots++;
+        }
     }
     
     if (totalRobots == 0)
     {
-        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 No purchased robots currently active!");
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 No robots currently active!");
         return Plugin_Handled;
     }
     
     Menu menu = new Menu(MenuHandler_AdminRobots);
-    menu.SetTitle("Admin: All Robots (%d total)\n ", totalRobots);
+    menu.SetTitle("Admin: All Robots (%d total, %d AI)\n ", totalRobots, totalAIBots);
     
     char line[256];
     char info[16];
@@ -790,14 +812,30 @@ public Action Command_AdminRobots(int client, int args)
         else
             teamName = "???";
         
-        int owner = g_iBuyRobotOwner[i];
-        char ownerName[64] = "Server";
+        char ownerName[64];
         
-        if (owner > 0 && IsClientInGame(owner))
+        if (g_bBuyIsAIRobot[i])
         {
-            GetClientName(owner, ownerName, sizeof(ownerName));
-            if (IsFakeClient(owner) && g_bIsDefenderBot[owner])
-                Format(ownerName, sizeof(ownerName), "[BOT] %s", ownerName);
+            if (team == TFTeam_Red)
+                Format(ownerName, sizeof(ownerName), "Saxton Hale");
+            else if (team == TFTeam_Blue)
+                Format(ownerName, sizeof(ownerName), "Gray Mann");
+            else
+                Format(ownerName, sizeof(ownerName), "Unknown");
+        }
+        else
+        {
+            int owner = g_iBuyRobotOwner[i];
+            if (owner > 0 && IsClientInGame(owner))
+            {
+                GetClientName(owner, ownerName, sizeof(ownerName));
+                if (IsFakeClient(owner) && g_bIsDefenderBot[owner])
+                    Format(ownerName, sizeof(ownerName), "[BOT] %s", ownerName);
+            }
+            else
+            {
+                Format(ownerName, sizeof(ownerName), "Server");
+            }
         }
         
         Format(line, sizeof(line), "[%s] %s (%s) - %s", teamName, robotName, className, ownerName);
@@ -3154,26 +3192,6 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
 void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] prefix = "", bool bSaxtonAI = false, TFTeam team = TFTeam_Red)
 {
     char command[256];
-    char botName[64];
-    
-    if (bSaxtonAI)
-    {
-        if (strlen(prefix) > 0)
-            Format(botName, sizeof(botName), "%s", prefix);
-        else
-            Format(botName, sizeof(botName), "Unit");
-    }
-    else
-    {
-        if (strlen(prefix) > 0)
-            Format(botName, sizeof(botName), "%s", prefix);
-        else
-        {
-            char className[32];
-            BuyRobot_GetClassName(class, className, sizeof(className));
-            Format(botName, sizeof(botName), "%s", className);
-        }
-    }
     
     char teamStr[8];
     if (team == TFTeam_Red)
@@ -3181,13 +3199,15 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     else
         teamStr = "blue";
     
+    int uniqueID = GetRandomInt(100000, 999999);
+    
     if (buyer == 0)
     {
-        Format(command, sizeof(command), "tf_bot_add 1 %s %s expert noquota %s BOT_BONUS", class, teamStr, botName);
+        Format(command, sizeof(command), "tf_bot_add 1 %s %s expert noquota bot_tmp_%d BOT_BONUS_%d", class, teamStr, uniqueID, uniqueID);
     }
     else
     {
-        Format(command, sizeof(command), "tf_bot_add 1 %s %s expert noquota %s BOT_BUY_%d", class, teamStr, botName, buyer);
+        Format(command, sizeof(command), "tf_bot_add 1 %s %s expert noquota bot_tmp_%d BOT_BUY_%d_%d", class, teamStr, uniqueID, buyer, uniqueID);
     }
     
     ServerCommand(command);
@@ -3199,6 +3219,7 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     pack.WriteString(prefix);
     pack.WriteCell(bSaxtonAI);
     pack.WriteCell(view_as<int>(team));
+    pack.WriteCell(uniqueID);
     CreateTimer(0.1, BuyRobot_SetupBot, pack, TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -3214,13 +3235,14 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     bool bSaxtonAI = pack.ReadCell();
     int teamInt = pack.ReadCell();
     TFTeam team = view_as<TFTeam>(teamInt);
+    int uniqueID = pack.ReadCell();
     delete pack;
     
     char searchTag[32];
     if (buyer == 0)
-        Format(searchTag, sizeof(searchTag), "BOT_BONUS");
+        Format(searchTag, sizeof(searchTag), "BOT_BONUS_%d", uniqueID);
     else
-        Format(searchTag, sizeof(searchTag), "BOT_BUY_%d", buyer);
+        Format(searchTag, sizeof(searchTag), "BOT_BUY_%d_%d", buyer, uniqueID);
     
     int found = -1;
     int attempts = 0;
@@ -3254,7 +3276,8 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
                 retryPack.WriteString(prefix);
                 retryPack.WriteCell(bSaxtonAI);
                 retryPack.WriteCell(teamInt);
-                CreateTimer(0.1, BuyRobot_SetupBot, retryPack, TIMER_FLAG_NO_MAPCHANGE);
+                retryPack.WriteCell(uniqueID);
+                CreateTimer(0.3, BuyRobot_SetupBot, retryPack, TIMER_FLAG_NO_MAPCHANGE);
                 return Plugin_Stop;
             }
         }
@@ -3265,6 +3288,8 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     int client = found;
     
     g_bBuyIsPurchasedRobot[client] = true;
+    g_bBuyIsAIRobot[client] = bSaxtonAI;
+    
     g_iBuyRobotLives[client] = lives;
     g_iBuyRobotOwner[client] = buyer;
     
@@ -3295,10 +3320,6 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
         char bossName[64];
         Format(bossName, sizeof(bossName), "Boss %s", className);
         SetClientName(client, bossName);
-    }
-    else if (strlen(prefix) > 0)
-    {
-        SetClientName(client, prefix);
     }
     else
     {
@@ -4693,6 +4714,7 @@ if (g_bBuyIsPurchasedRobot[client] && TF2_GetClientTeam(client) == TFTeam_Blue &
 }
     
     g_bBuyIsPurchasedRobot[client] = false;
+    g_bBuyIsAIRobot[client] = false;
     g_iBuyRobotLives[client] = 0;
     g_iBuyRobotOwner[client] = 0;
     g_iBuyRobotHatIndex[client] = 0;
@@ -4943,50 +4965,38 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     int classCount[9] = {0,0,0,0,0,0,0,0,0};
     int created = 0;
     
-    for (int i = 0; i < bossesToSend; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char unitName[64];
-        GetRandomUnitName(unitName, sizeof(unitName));
-        
-        char bossName[64];
-        Format(bossName, sizeof(bossName), "Boss %s", unitName);
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, bossName, true, TFTeam_Red);
-        created++;
-        classCount[selected]++;
-    }
+for (int i = 0; i < bossesToSend; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    for (int i = 0; i < giantsToSend; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char unitName[64];
-        GetRandomUnitName(unitName, sizeof(unitName));
-        
-        char giantName[64];
-        Format(giantName, sizeof(giantName), "Giant %s", unitName);
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, giantName, true, TFTeam_Red);
-        created++;
-        classCount[selected]++;
-    }
+    BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Red);
+    created++;
+    classCount[selected]++;
+}
+
+for (int i = 0; i < giantsToSend; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    int normalToAdd = count - giantsToSend - bossesToSend;
-    if (normalToAdd < 0) normalToAdd = 0;
+    BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Red);
+    created++;
+    classCount[selected]++;
+}
+
+int normalToAdd = count - giantsToSend - bossesToSend;
+if (normalToAdd < 0) normalToAdd = 0;
+
+for (int i = 0; i < normalToAdd; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    for (int i = 0; i < normalToAdd; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char name[64];
-        GetRandomUnitName(name, sizeof(name));
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, name, true, TFTeam_Red);
-        created++;
-        classCount[selected]++;
-    }
+    BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Red);
+    created++;
+    classCount[selected]++;
+}
     
     if (created == 0)
         return;
@@ -5189,50 +5199,38 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     int classCount[9] = {0,0,0,0,0,0,0,0,0};
     int created = 0;
     
-    for (int i = 0; i < bossesToSend; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char unitName[64];
-        GetRandomUnitName(unitName, sizeof(unitName));
-        
-        char bossName[64];
-        Format(bossName, sizeof(bossName), "Boss %s", unitName);
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, bossName, true, TFTeam_Blue);
-        created++;
-        classCount[selected]++;
-    }
+for (int i = 0; i < bossesToSend; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    for (int i = 0; i < giantsToSend; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char unitName[64];
-        GetRandomUnitName(unitName, sizeof(unitName));
-        
-        char giantName[64];
-        Format(giantName, sizeof(giantName), "Giant %s", unitName);
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, giantName, true, TFTeam_Blue);
-        created++;
-        classCount[selected]++;
-    }
+    BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Blue);
+    created++;
+    classCount[selected]++;
+}
+
+for (int i = 0; i < giantsToSend; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    int normalToAdd = count - giantsToSend - bossesToSend;
-    if (normalToAdd < 0) normalToAdd = 0;
+    BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Blue);
+    created++;
+    classCount[selected]++;
+}
+
+int normalToAdd = count - giantsToSend - bossesToSend;
+if (normalToAdd < 0) normalToAdd = 0;
+
+for (int i = 0; i < normalToAdd; i++)
+{
+    if (GetTotalBotsCount() >= maxBots) break;
+    int selected = GetRandomInt(0, sizeof(classes) - 1);
     
-    for (int i = 0; i < normalToAdd; i++)
-    {
-        if (GetTotalBotsCount() >= maxBots) break;
-        int selected = GetRandomInt(0, sizeof(classes) - 1);
-        char name[64];
-        GetRandomUnitName(name, sizeof(name));
-        
-        BuyRobot_CreateBot(classes[selected], 0, 1, name, true, TFTeam_Blue);
-        created++;
-        classCount[selected]++;
-    }
+    BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Blue);
+    created++;
+    classCount[selected]++;
+}
     
     if (created == 0)
         return;
@@ -5292,18 +5290,6 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     }
     
     PrintToChatAll("%s", finalMessage);
-}
-
-static void GetRandomUnitName(char[] buffer, int maxlen)
-{
-    char prefixes[][] = {"Unit", "Drone", "Bot", "Mech", "Droid", "Auto", "Cyb", "X", "Z", "V"};
-    char suffixes[][] = {"-A", "-B", "-C", "-D", "-E", "-F", "-G", "-H", "-I", "-J"};
-    
-    int num = GetRandomInt(1, 99);
-    int prefix = GetRandomInt(0, sizeof(prefixes) - 1);
-    int suffix = GetRandomInt(0, sizeof(suffixes) - 1);
-    
-    Format(buffer, maxlen, "%s%s-%02d", prefixes[prefix], suffixes[suffix], num);
 }
 
 public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcast)
@@ -5389,10 +5375,11 @@ if (g_cvBuyWaveBonusEnable.BoolValue)
             
             for (int i = 0; i < bonusCount; i++)
             {
-                char unitName[64];
-                GetRandomUnitName(unitName, sizeof(unitName));
                 int randomClass = GetRandomInt(0, sizeof(classes) - 1);
-                BuyRobot_CreateBot(classes[randomClass], 0, 1, unitName, true, TFTeam_Red);
+                char className[32];
+                BuyRobot_GetClassName(classes[randomClass], className, sizeof(className));
+                
+                BuyRobot_CreateBot(classes[randomClass], 0, 1, className, true, TFTeam_Red);
                 classCount[randomClass]++;
             }
             
@@ -5410,7 +5397,10 @@ if (g_cvBuyWaveBonusEnable.BoolValue)
                     if (!first)
                         StrCat(classList, sizeof(classList), ", ");
                     
-                    Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
+                    if (classCount[i] > 1)
+                        Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
+                    else
+                        Format(classList, sizeof(classList), "%s%s", classList, displayName);
                     
                     first = false;
                 }
@@ -5460,7 +5450,7 @@ public void BuyRobot_WaveEnd(Event event, const char[] name, bool dontBroadcast)
     {
         for (int i = 1; i <= MaxClients; i++)
         {
-            if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Red)
+            if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i] && !g_bBuyIsAIRobot[i] && TF2_GetClientTeam(i) == TFTeam_Red)
             {
                 KickClient(i, "Wave ended");
                 BuyRobot_CleanupBot(i);
@@ -5480,7 +5470,7 @@ public void BuyRobot_WaveFailed(Event event, const char[] name, bool dontBroadca
     
     if (g_iWaveFailCounterTick == 1)
     {
-        CreateTimer(0.01, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(0.1, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
     }
     
     CreateTimer(0.5, Timer_ResetWaveFailCounter, _, TIMER_FLAG_NO_MAPCHANGE);
@@ -5799,47 +5789,12 @@ void BuyRobot_RemoveAll()
 
 void RemoveUnitsAIBots()
 {
-    char prefixes[][] = {"Unit-", "Drone-", "Bot-", "Mech-", "Droid-", "Auto-", "Cyb-", "X-", "Z-", "V-"};
-    
     for (int i = 1; i <= MaxClients; i++)
     {
         if (!IsClientInGame(i))
             continue;
         
-        if (!g_bBuyIsPurchasedRobot[i])
-            continue;
-        
-        char clientName[64];
-        GetClientName(i, clientName, sizeof(clientName));
-        
-        bool shouldRemove = false;
-        
-        for (int j = 0; j < sizeof(prefixes); j++)
-        {
-            if (StrContains(clientName, prefixes[j]) != -1)
-            {
-                shouldRemove = true;
-                break;
-            }
-            
-            char giantPrefix[32];
-            Format(giantPrefix, sizeof(giantPrefix), "Giant %s", prefixes[j]);
-            if (StrContains(clientName, giantPrefix) != -1)
-            {
-                shouldRemove = true;
-                break;
-            }
-            
-            char bossPrefix[32];
-            Format(bossPrefix, sizeof(bossPrefix), "Boss %s", prefixes[j]);
-            if (StrContains(clientName, bossPrefix) != -1)
-            {
-                shouldRemove = true;
-                break;
-            }
-        }
-        
-        if (shouldRemove)
+        if (g_bBuyIsAIRobot[i])
         {
             KickClient(i, "Wave ended");
             BuyRobot_CleanupBot(i);
@@ -6744,7 +6699,7 @@ public Action Timer_ForceRefreshModels(Handle timer)
     if (g_hSpawnPoints.Length > 0)
     {
         RemoveAllSpawnpointModels();
-        CreateTimer(0.01, Timer_CreateSpawnModels, _, TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(0.1, Timer_CreateSpawnModels, _, TIMER_FLAG_NO_MAPCHANGE);
     }
     return Plugin_Stop;
 }
@@ -6916,7 +6871,7 @@ public Action Command_SaveSpawns(int client, int args)
 public Action Command_LoadSpawns(int client, int args)
 {
     LoadSpawnPoints();
-    CreateTimer(0.01, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
+    CreateTimer(0.1, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
     PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Loaded %d spawn points.", g_hSpawnPoints.Length);
     return Plugin_Handled;
 }
@@ -7688,7 +7643,7 @@ void BuyRobot_OnMapStart()
     
     if (g_hSpawnPoints.Length > 0)
     {
-        CreateTimer(0.01, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(0.1, Timer_ForceRefreshModels, _, TIMER_FLAG_NO_MAPCHANGE);
     }
     
     if (g_hValidationTimer != INVALID_HANDLE)

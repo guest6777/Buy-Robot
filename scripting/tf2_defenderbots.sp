@@ -125,6 +125,7 @@ bool g_bIsDefenderBot[MAXPLAYERS + 1];
 bool g_bIsBeingRevived[MAXPLAYERS + 1];
 bool g_bHasUpgraded[MAXPLAYERS + 1];
 bool g_bBuyIsPurchasedRobot[MAXPLAYERS + 1];
+bool g_bBuyIsAIRobot[MAXPLAYERS + 1];
 esButtonInput g_arrExtraButtons[MAXPLAYERS + 1];
 static float m_flDeadRethinkTime[MAXPLAYERS + 1];
 int g_iBuybackNumber[MAXPLAYERS + 1];
@@ -2035,14 +2036,6 @@ void RemoveAllDefenderBots(char[] reason = "", bool bDanceInstead = false)
             KickClient(i, reason);
         }
     }
-    
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
-        {
-            KickClient(i, "");
-        }
-    }
 }
 
 static int m_iFindNameTries[MAXPLAYERS + 1];
@@ -2238,20 +2231,6 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
 
 void AddDefenderTFBot(int count, char[] class, char[] team = "red", char[] difficulty = "expert", bool quotaManaged = false)
 {
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
-		{
-			char name[MAX_NAME_LENGTH];
-			GetClientName(i, name, sizeof(name));
-			
-			if (StrContains(name, "TFBot") != -1 || StrContains(name, TFBOT_IDENTITY_NAME) != -1)
-			{
-				KickClient(i, "");
-			}
-		}
-	}
-	
 	//Send command as many times as needed because custom names aren't supported when adding multiple
 	for (int i = 0; i < count; i++)
 		ServerCommand("tf_bot_add %d %s red %s %s %s", 1, class, difficulty, quotaManaged ? "" : "noquota", TFBOT_IDENTITY_NAME);
@@ -2259,14 +2238,6 @@ void AddDefenderTFBot(int count, char[] class, char[] team = "red", char[] diffi
 
 void AddRandomDefenderBots(int amount)
 {
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
-		{
-			KickClient(i, "");
-		}
-	}
-	
 	PrintToChatAll("%s Adding %d bot(s)...", PLUGIN_PREFIX, amount);
 	
 	for (int i = 1; i <= amount; i++)
@@ -2275,14 +2246,6 @@ void AddRandomDefenderBots(int amount)
 
 void AddBotsWithPresetTeamComp(int count = 6, int teamType = 0)
 {
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && IsFakeClient(i) && !g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == TFTeam_Spectator)
-		{
-			KickClient(i, "");
-		}
-	}
-	
 	int total = 0;
 	
 	for (int i = 0; i < count; i++)
