@@ -34,7 +34,7 @@ public Action CTFBotAttackTank_Update(BehaviorAction action, int actor, float in
     {
         case TFClass_Scout:
         {
-            if (CTFBotCollectMoney_IsPossible(actor))
+            if (TF2_GetClientTeam(actor) == TFTeam_Red && CTFBotCollectMoney_IsPossible(actor))
                 return action.ChangeTo(CTFBotCollectMoney(), "Get credits");
         }
         case TFClass_Sniper:

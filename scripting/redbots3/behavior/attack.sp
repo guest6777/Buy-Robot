@@ -34,10 +34,10 @@ static Action CTFBotDefenderAttack_Update(BehaviorAction action, int actor, floa
         }
     }
     
-    if (CTFBotCampBomb_IsPossible(actor))
+    if (TF2_GetClientTeam(actor) == TFTeam_Red && CTFBotCampBomb_IsPossible(actor))
         return action.ChangeTo(CTFBotCampBomb(), "Camp bomb");
     
-    if (CTFBotGuardPoint_IsPossible(actor))
+    if (TF2_GetClientTeam(actor) == TFTeam_Red && CTFBotGuardPoint_IsPossible(actor))
         return action.ChangeTo(CTFBotGuardPoint(), "Defending a point");
     
     if (CTFBotDestroyTeleporter_SelectTarget(actor))
@@ -64,7 +64,7 @@ static Action CTFBotDefenderAttack_Update(BehaviorAction action, int actor, floa
     {
         case TFClass_Scout:
         {
-            if (CTFBotCollectMoney_IsPossible(actor))
+            if (TF2_GetClientTeam(actor) == TFTeam_Red && CTFBotCollectMoney_IsPossible(actor))
                 return action.ChangeTo(CTFBotCollectMoney(), "Collectinh money");
         }
         case TFClass_Soldier, TFClass_Pyro, TFClass_DemoMan, TFClass_Heavy:
