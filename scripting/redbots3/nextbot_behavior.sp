@@ -710,12 +710,108 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
     }
     
     RoundState state = GameRules_GetRoundState();
+    TFTeam team = TF2_GetClientTeam(client);
     
     char clientName[64];
     GetClientName(client, clientName, sizeof(clientName));
     bool isGiant = (StrContains(clientName, "Giant") != -1);
     bool isBoss = (StrContains(clientName, "Boss") != -1);
     
+    // BLUE team robots cannot collect money or upgrade
+    if (team == TFTeam_Blue)
+    {
+        if (state == RoundState_BetweenRounds)
+        {
+            if (isGiant || isBoss)
+            {
+                if (TF2_GetPlayerClass(client) == TFClass_Engineer)
+                {
+                    SetPlayerReady(client, true);
+                    return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
+                }
+                
+                if (TF2_GetPlayerClass(client) == TFClass_Medic)
+                {
+                    SetPlayerReady(client, true);
+                    return Plugin_Continue;
+                }
+                
+                if (HasSniperRifle(client))
+                {
+                    SetPlayerReady(client, true);
+                    return Plugin_Continue;
+                }
+                
+                if (TF2_GetPlayerClass(client) == TFClass_Spy)
+                {
+                    SetPlayerReady(client, true);
+                    return action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (giant)");
+                }
+                
+                SetPlayerReady(client, true);
+                return action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (giant robot)");
+            }
+            
+            SetPlayerReady(client, true);
+            return action.SuspendFor(CTFBotMoveToFront(), "BLUE team - no upgrades");
+        }
+        else if (state == RoundState_RoundRunning)
+        {
+            switch (TF2_GetPlayerClass(client))
+            {
+                case TFClass_Medic:
+                {
+                    return Plugin_Continue;
+                }
+                case TFClass_Scout:
+                {
+                    if (CTFBotMarkGiant_IsPossible(client))
+                        return action.SuspendFor(CTFBotMarkGiant(), "Marking giant");
+                    else if (CTFBotAttackTank_SelectTarget(client))
+                        return action.SuspendFor(CTFBotAttackTank(), "Scout: Attacking tank");
+                    else if (CTFBotDefenderAttack_SelectTarget(client))
+                        return action.SuspendFor(CTFBotDefenderAttack(), "Scout: Attacking robots");
+                }
+                case TFClass_Sniper:
+                {
+                    if (HasSniperRifle(client))
+                    {
+                        return Plugin_Continue;
+                    }
+                    else
+                    {
+                        return action.SuspendFor(CTFBotDefenderAttack(), "Sniper Attacking robots");
+                    }
+                }
+                case TFClass_Engineer:
+                {
+                    return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer Start building");
+                }
+                case TFClass_Spy:
+                {
+                    return action.SuspendFor(CTFBotSpyLurkMvM(), "Spy do be lurking");
+                }
+                case TFClass_Heavy:
+                {
+                    if (CTFBotDefenderAttack_SelectTarget(client))
+                        return action.SuspendFor(CTFBotDefenderAttack(), "CTFBotAttack_IsPossible");
+                    else if (CTFBotAttackTank_SelectTarget(client))
+                        return action.SuspendFor(CTFBotAttackTank(), "Attacking tank");
+                }
+                case TFClass_Pyro, TFClass_Soldier, TFClass_DemoMan:
+                {
+                    if (CTFBotAttackTank_SelectTarget(client))
+                        return action.SuspendFor(CTFBotAttackTank(), "Attacking tank");
+                    else if (CTFBotDefenderAttack_SelectTarget(client))
+                        return action.SuspendFor(CTFBotDefenderAttack(), "CTFBotAttack_IsPossible");
+                }
+            }
+        }
+        
+        return Plugin_Continue;
+    }
+    
+    // RED team robots - normal behavior
     if (state == RoundState_BetweenRounds)
     {
         if (CTFBotCollectMoney_IsPossible(client))
@@ -728,7 +824,7 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
             {
                 if (TF2_GetPlayerClass(client) == TFClass_Engineer)
                 {
-		    SetPlayerReady(client, true);
+                    SetPlayerReady(client, true);
                     return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
                 }
                 
@@ -767,7 +863,7 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
                 {
                     if (TF2_GetPlayerClass(client) == TFClass_Engineer)
                     {
-			SetPlayerReady(client, true);
+                        SetPlayerReady(client, true);
                         return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (purchased)");
                     }
                     

@@ -142,7 +142,7 @@ bool g_bPyroLocked2[MAXPLAYERS+1];
 int g_iDefenderBotHatIndex[MAXPLAYERS + 1];
 
 static float g_flLastNestMoveTime[MAXPLAYERS + 1];
-#define NEST_MOVE_COOLDOWN 30.0
+#define NEST_MOVE_COOLDOWN 10.0
 
 #if !defined IDLEBOT_AIMING
 static float m_flNextSnipeFireTime[MAXPLAYERS + 1];
@@ -2233,7 +2233,7 @@ void AddDefenderTFBot(int count, char[] class, char[] team = "red", char[] diffi
 {
 	//Send command as many times as needed because custom names aren't supported when adding multiple
 	for (int i = 0; i < count; i++)
-		ServerCommand("tf_bot_add %d %s red %s %s %s", 1, class, difficulty, quotaManaged ? "" : "noquota", TFBOT_IDENTITY_NAME);
+		ServerCommand("tf_bot_add %d %s %s %s %s %s", 1, class, team, difficulty, quotaManaged ? "" : "noquota", TFBOT_IDENTITY_NAME);
 }
 
 void AddRandomDefenderBots(int amount)
