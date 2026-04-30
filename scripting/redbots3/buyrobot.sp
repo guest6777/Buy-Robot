@@ -475,8 +475,6 @@ void BuyRobot_Init()
     RegAdminCmd("sm_clearspawns", Command_ClearSpawns, ADMFLAG_GENERIC, "Clear all spawn points");
     RegAdminCmd("sm_savespawns", Command_SaveSpawns, ADMFLAG_GENERIC, "Save spawn points to file");
     RegAdminCmd("sm_loadspawns", Command_LoadSpawns, ADMFLAG_GENERIC, "Load spawn points from file");
-    RegConsoleCmd("sm_checkloadout", Command_CheckLoadout);
-    RegConsoleCmd("sm_setloadout", Command_SetLoadout);
     
     HookEvent("player_death", BuyRobot_EventDeath);
     HookEvent("player_spawn", BuyRobot_EventSpawn);
@@ -8296,62 +8294,4 @@ void BuyRobot_OnMapStart()
     BuyRobot_LoadAllPoints();
 
     CreateTimer(3.0, Timer_DelayedPointsLoad, _, TIMER_FLAG_NO_MAPCHANGE);
-}
-
-public Action Command_CheckLoadout(int client, int args)
-{
-    if (args < 1)
-    {
-        ReplyToCommand(client, "Usage: sm_checkloadout <botid>");
-        return Plugin_Handled;
-    }
-    char arg[32];
-    GetCmdArg(1, arg, sizeof(arg));
-    int bot = StringToInt(arg);
-    if (!IsValidClientIndex(bot) || !IsFakeClient(bot))
-    {
-        ReplyToCommand(client, "Invalid bot ID");
-        return Plugin_Handled;
-    }
-    char weaponName[64];
-    if (TF2Econ_GetItemName(m_iWeaponPrimary[bot], weaponName, sizeof(weaponName)))
-        ReplyToCommand(client, "Primary: %s", weaponName);
-    else
-        ReplyToCommand(client, "Primary: Unknown (%d)", m_iWeaponPrimary[bot]);
-    if (TF2Econ_GetItemName(m_iWeaponSecondary[bot], weaponName, sizeof(weaponName)))
-        ReplyToCommand(client, "Secondary: %s", weaponName);
-    else
-        ReplyToCommand(client, "Secondary: Unknown (%d)", m_iWeaponSecondary[bot]);
-    if (TF2Econ_GetItemName(m_iWeaponMelee[bot], weaponName, sizeof(weaponName)))
-        ReplyToCommand(client, "Melee: %s", weaponName);
-    else
-        ReplyToCommand(client, "Melee: Unknown (%d)", m_iWeaponMelee[bot]);
-    return Plugin_Handled;
-}
-
-public Action Command_SetLoadout(int client, int args)
-{
-    if (args < 4)
-    {
-        ReplyToCommand(client, "Usage: sm_setloadout <botid> <primary> <secondary> <melee>");
-        return Plugin_Handled;
-    }
-    char arg[32];
-    GetCmdArg(1, arg, sizeof(arg));
-    int bot = StringToInt(arg);
-    if (!IsValidClientIndex(bot) || !IsFakeClient(bot))
-    {
-        ReplyToCommand(client, "Invalid bot ID");
-        return Plugin_Handled;
-    }
-    GetCmdArg(2, arg, sizeof(arg));
-    m_iWeaponPrimary[bot] = StringToInt(arg);
-    GetCmdArg(3, arg, sizeof(arg));
-    m_iWeaponSecondary[bot] = StringToInt(arg);
-    GetCmdArg(4, arg, sizeof(arg));
-    m_iWeaponMelee[bot] = StringToInt(arg);
-    // Apply immediately
-    CreateTimer(0.1, Timer_GiveCustomLoadout, bot);
-    ReplyToCommand(client, "Loadout set for bot %d", bot);
-    return Plugin_Handled;
 }
