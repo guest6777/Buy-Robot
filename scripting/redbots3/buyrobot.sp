@@ -411,7 +411,7 @@ void BuyRobot_Init()
     g_cvBuyWaveBonusChance = CreateConVar("sm_buyrobot_wave_bonus_chance", "20", "Chance for wave bonus (0-100)", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     g_cvBuyWaveBonusCount = CreateConVar("sm_buyrobot_wave_bonus_count", "5", "Number of bonus robots", FCVAR_NOTIFY, true, 1.0, true, 100.0);
     g_cvBuyUseCustomSpawns = CreateConVar("sm_buyrobot_use_custom_spawns", "1", "Use custom spawn points for robots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_cvBuyUseCustomLoadouts = CreateConVar("sm_buyrobot_use_custom_loadouts", "0", "Allow purchased robots to use custom loadouts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+    g_cvBuyUseCustomLoadouts = CreateConVar("sm_buyrobot_use_custom_loadouts", "1", "Allow purchased robots to use custom loadouts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuyUseUpgrades = CreateConVar("sm_buyrobot_use_upgrades", "0", "Allow purchased robots to buy upgrades (Mann Co.)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuySaxtonAI = CreateConVar("sm_buyrobot_saxton_ai", "0", "Enable Saxton Hale AI to send reinforcements based on team strength (Mann Co.)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuySaxtonDelay = CreateConVar("sm_buyrobot_saxton_delay", "20.0", "Delay in seconds between Saxton Hale AI reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
@@ -3017,6 +3017,16 @@ void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
 
 void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int botCount, int category, TFTeam team)
 {
+    // If custom loadouts are disabled, skip to confirm purchase with default loadout
+    if (!g_cvBuyUseCustomLoadouts.BoolValue)
+    {
+        g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
+        g_iTempLoadoutSecondary[client] = TF_ITEMDEF_DEFAULT;
+        g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
+        BuyRobot_ConfirmPurchase(client, class, price, botCount, category, team);
+        return;
+    }
+    
     // Reset temp loadout if class changed
     if (!StrEqual(g_sCurrentClass[client], class))
     {
