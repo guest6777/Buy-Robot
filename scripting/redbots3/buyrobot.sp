@@ -1,3 +1,5 @@
+#include "loadouts.sp"
+
 ConVar g_cvBuyEnable;
 ConVar g_cvBuyMaxBots;
 ConVar g_cvBuyPointsPerKill;
@@ -64,6 +66,18 @@ float g_flStuckTime[MAXPLAYERS + 1];
 
 int g_iBuyRobotHatIndex[MAXPLAYERS + 1];
 int g_iWaitingForRename[MAXPLAYERS + 1];
+
+// Temporary loadout storage for purchase
+int g_iTempLoadoutPrimary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int g_iTempLoadoutSecondary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int g_iTempLoadoutMelee[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+
+// Current purchase data
+char g_sCurrentClass[MAXPLAYERS + 1][32];
+int g_iCurrentPrice[MAXPLAYERS + 1];
+int g_iCurrentBotCount[MAXPLAYERS + 1];
+int g_iCurrentCategory[MAXPLAYERS + 1];
+TFTeam g_CurrentTeam[MAXPLAYERS + 1];
 
 static const char g_sPointsFile[] = "configs/defenderbots/buyrobot/points.txt";
 static KeyValues g_hPointsKV = null;
@@ -132,6 +146,9 @@ enum struct WaitingPurchase
     int price;
     int botCount;
     int category;
+    int primaryWeapon;
+    int secondaryWeapon;
+    int meleeWeapon;
     
     void Reset()
     {
@@ -143,6 +160,9 @@ enum struct WaitingPurchase
         this.price = 0;
         this.botCount = 0;
         this.category = 0;
+        this.primaryWeapon = TF_ITEMDEF_DEFAULT;
+        this.secondaryWeapon = TF_ITEMDEF_DEFAULT;
+        this.meleeWeapon = TF_ITEMDEF_DEFAULT;
     }
 }
 
@@ -455,6 +475,8 @@ void BuyRobot_Init()
     RegAdminCmd("sm_clearspawns", Command_ClearSpawns, ADMFLAG_GENERIC, "Clear all spawn points");
     RegAdminCmd("sm_savespawns", Command_SaveSpawns, ADMFLAG_GENERIC, "Save spawn points to file");
     RegAdminCmd("sm_loadspawns", Command_LoadSpawns, ADMFLAG_GENERIC, "Load spawn points from file");
+    RegConsoleCmd("sm_checkloadout", Command_CheckLoadout);
+    RegConsoleCmd("sm_setloadout", Command_SetLoadout);
     
     HookEvent("player_death", BuyRobot_EventDeath);
     HookEvent("player_spawn", BuyRobot_EventSpawn);
@@ -2238,11 +2260,11 @@ public int MenuHandler_HelpMain(Menu menu, MenuAction action, int param1, int pa
     return 0;
 }
 
-void AddToWaitingQueue(int buyer, const char[] class, int lives, const char[] prefix, TFTeam team, int price, int botCount, int category)
+void AddToWaitingQueue(int buyer, const char[] class, int lives, const char[] prefix, TFTeam team, int price, int botCount, int category, int primaryWeapon = TF_ITEMDEF_DEFAULT, int secondaryWeapon = TF_ITEMDEF_DEFAULT, int meleeWeapon = TF_ITEMDEF_DEFAULT)
 {
     char data[256];
-    Format(data, sizeof(data), "%d|%s|%d|%s|%d|%d|%d|%d", 
-        GetClientUserId(buyer), class, lives, prefix, view_as<int>(team), price, botCount, category);
+    Format(data, sizeof(data), "%d|%s|%d|%s|%d|%d|%d|%d|%d|%d|%d", 
+        GetClientUserId(buyer), class, lives, prefix, view_as<int>(team), price, botCount, category, primaryWeapon, secondaryWeapon, meleeWeapon);
     
     g_hWaitingQueue.PushString(data);
     
@@ -2320,15 +2342,20 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
         char data[256];
         g_hWaitingQueue.GetString(i, data, sizeof(data));
         
-        char parts[8][32];
-        ExplodeString(data, "|", parts, 8, 32);
+        char parts[11][32];
+        ExplodeString(data, "|", parts, 11, 32);
         
         int buyerId = StringToInt(parts[0]);
         char class[32]; strcopy(class, sizeof(class), parts[1]);
         int lives = StringToInt(parts[2]);
         char prefix[32]; strcopy(prefix, sizeof(prefix), parts[3]);
         TFTeam team = view_as<TFTeam>(StringToInt(parts[4]));
+        int price = StringToInt(parts[5]);
         int botCount = StringToInt(parts[6]);
+        int category = StringToInt(parts[7]);
+        int primaryWeapon = StringToInt(parts[8]);
+        int secondaryWeapon = StringToInt(parts[9]);
+        int meleeWeapon = StringToInt(parts[10]);
         
         if (currentBots + botCount <= maxBots)
         {
@@ -2341,7 +2368,7 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
             {
                 for (int j = 0; j < botCount; j++)
                 {
-                    BuyRobot_CreateBot(class, buyer, lives, prefix, false, team);
+                    BuyRobot_CreateBot(class, buyer, lives, prefix, false, team, primaryWeapon, secondaryWeapon, meleeWeapon);
                 }
                 
                 char className[32];
@@ -2990,6 +3017,767 @@ void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
     menu.Display(client, MENU_TIME_FOREVER);
 }
 
+void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int botCount, int category, TFTeam team)
+{
+    // Reset temp loadout if class changed
+    if (!StrEqual(g_sCurrentClass[client], class))
+    {
+        g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
+        g_iTempLoadoutSecondary[client] = TF_ITEMDEF_DEFAULT;
+        g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
+    }
+    
+    // Initialize temp loadout if not set
+    if (g_iTempLoadoutPrimary[client] == 0) g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
+    if (g_iTempLoadoutSecondary[client] == 0) g_iTempLoadoutSecondary[client] = TF_ITEMDEF_DEFAULT;
+    if (g_iTempLoadoutMelee[client] == 0) g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
+    
+    // Set current purchase data
+    strcopy(g_sCurrentClass[client], sizeof(g_sCurrentClass[]), class);
+    g_iCurrentPrice[client] = price;
+    g_iCurrentBotCount[client] = botCount;
+    g_iCurrentCategory[client] = category;
+    g_CurrentTeam[client] = team;
+    
+    Menu menu = new Menu(BuyRobot_MenuLoadoutHandler);
+    menu.SetTitle("Edit Loadout\nClass: %s\nPrice: %d points\nPrimary: %s\nSecondary: %s\nMelee: %s\n ", 
+        class, price, 
+        g_iTempLoadoutPrimary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default",
+        g_iTempLoadoutSecondary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default",
+        g_iTempLoadoutMelee[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default");
+    
+    char info[128];
+    Format(info, sizeof(info), "primary %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(info, "Edit Primary Weapon");
+    
+    Format(info, sizeof(info), "secondary %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(info, "Edit Secondary Weapon");
+    
+    Format(info, sizeof(info), "melee %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(info, "Edit Melee Weapon");
+    
+    Format(info, sizeof(info), "confirm %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(info, "Confirm Purchase");
+    
+    menu.ExitBackButton = true;
+    menu.ExitButton = true;
+    menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int BuyRobot_MenuLoadoutHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+    if (action == MenuAction_Select)
+    {
+        int client = param1;
+        char item[128];
+        menu.GetItem(param2, item, sizeof(item));
+        
+        char slot[32], class[32];
+        int price, botCount, category, teamInt;
+        char parts[6][32];
+        ExplodeString(item, " ", parts, 6, 32);
+        strcopy(slot, sizeof(slot), parts[0]);
+        strcopy(class, sizeof(class), parts[1]);
+        price = StringToInt(parts[2]);
+        botCount = StringToInt(parts[3]);
+        category = StringToInt(parts[4]);
+        teamInt = StringToInt(parts[5]);
+        TFTeam team = view_as<TFTeam>(teamInt);
+        
+        if (StrEqual(slot, "primary"))
+        {
+            BuyRobot_ShowWeaponMenu(client, class, "primary", price, botCount, category, team);
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            BuyRobot_ShowWeaponMenu(client, class, "secondary", price, botCount, category, team);
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            BuyRobot_ShowWeaponMenu(client, class, "melee", price, botCount, category, team);
+        }
+        else if (StrEqual(slot, "confirm"))
+        {
+            BuyRobot_ConfirmPurchase(client, class, price, botCount, category, team);
+        }
+    }
+    else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
+    {
+        int client = param1;
+        TFTeam team = TF2_GetClientTeam(client);
+        BuyRobot_ShowMainMenu(client, team);
+    }
+    else if (action == MenuAction_End)
+    {
+        delete menu;
+    }
+    return 0;
+}
+
+void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, int price, int botCount, int category, TFTeam team)
+{
+    Menu menu = new Menu(BuyRobot_MenuWeaponHandler);
+    menu.SetTitle("Choose %s Weapon\nClass: %s\n ", slot, class);
+    
+    char weaponName[64];
+    char menuInfo[128];
+    
+    if (StrEqual(class, "scout"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SCOUT_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SCOUT_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SCOUT_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SCOUT_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SCOUT_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SCOUT_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SCOUT_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SCOUT_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SCOUT_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    // Add similar blocks for other classes...
+    // For brevity, I'll add a few more
+    
+    else if (StrEqual(class, "soldier"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SOLDIER_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SOLDIER_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SOLDIER_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SOLDIER_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SOLDIER_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SOLDIER_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SOLDIER_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SOLDIER_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SOLDIER_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "pyro"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_PYRO_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_PYRO_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_PYRO_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_PYRO_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_PYRO_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_PYRO_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_PYRO_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_PYRO_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_PYRO_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "demoman"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_DEMOMAN_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_DEMOMAN_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_DEMOMAN_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_DEMOMAN_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_DEMOMAN_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_DEMOMAN_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_DEMOMAN_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_DEMOMAN_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_DEMOMAN_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "heavy"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_HEAVY_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_HEAVY_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_HEAVY_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_HEAVY_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_HEAVY_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_HEAVY_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_HEAVY_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_HEAVY_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_HEAVY_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "engineer"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_ENGINEER_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_ENGINEER_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_ENGINEER_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_ENGINEER_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_ENGINEER_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_ENGINEER_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_ENGINEER_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_ENGINEER_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_ENGINEER_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "medic"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_MEDIC_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_MEDIC_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_MEDIC_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_MEDIC_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_MEDIC_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_MEDIC_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_MEDIC_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_MEDIC_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_MEDIC_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "sniper"))
+    {
+        if (StrEqual(slot, "primary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SNIPER_PRIMARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SNIPER_PRIMARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SNIPER_PRIMARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SNIPER_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SNIPER_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SNIPER_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SNIPER_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SNIPER_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SNIPER_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    else if (StrEqual(class, "spy"))
+    {
+        if (StrEqual(slot, "secondary"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SPY_SECONDARY); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SPY_SECONDARY[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SPY_SECONDARY[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            for (int i = 0; i < sizeof(BUYROBOT_SPY_MELEE); i++)
+            {
+                if (TF2Econ_GetItemName(BUYROBOT_SPY_MELEE[i], weaponName, sizeof(weaponName)))
+                {
+                    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", BUYROBOT_SPY_MELEE[i], slot, class, price, botCount, category, view_as<int>(team));
+                    menu.AddItem(menuInfo, weaponName);
+                }
+            }
+        }
+    }
+    
+    // Add default option
+    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", TF_ITEMDEF_DEFAULT, slot, class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(menuInfo, "Default Weapon");
+    
+    menu.ExitBackButton = true;
+    menu.ExitButton = true;
+    menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int BuyRobot_MenuWeaponHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+    if (action == MenuAction_Select)
+    {
+        int client = param1;
+        char item[128];
+        menu.GetItem(param2, item, sizeof(item));
+        
+        int itemDef;
+        char slot[32], class[32];
+        int price, botCount, category, teamInt;
+        char parts[7][32];
+        ExplodeString(item, " ", parts, 7, 32);
+        itemDef = StringToInt(parts[0]);
+        strcopy(slot, sizeof(slot), parts[1]);
+        strcopy(class, sizeof(class), parts[2]);
+        price = StringToInt(parts[3]);
+        botCount = StringToInt(parts[4]);
+        category = StringToInt(parts[5]);
+        teamInt = StringToInt(parts[6]);
+        TFTeam team = view_as<TFTeam>(teamInt);
+        
+        // Save the selected weapon
+        if (StrEqual(slot, "primary"))
+        {
+            g_iTempLoadoutPrimary[client] = itemDef;
+        }
+        else if (StrEqual(slot, "secondary"))
+        {
+            g_iTempLoadoutSecondary[client] = itemDef;
+        }
+        else if (StrEqual(slot, "melee"))
+        {
+            g_iTempLoadoutMelee[client] = itemDef;
+        }
+        
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+    }
+    else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
+    {
+        int client = param1;
+        BuyRobot_ShowLoadoutMenu(client, g_sCurrentClass[client], g_iCurrentPrice[client], g_iCurrentBotCount[client], g_iCurrentCategory[client], g_CurrentTeam[client]);
+    }
+    else if (action == MenuAction_End)
+    {
+        delete menu;
+    }
+    return 0;
+}
+
+// Check if a weapon is valid for a specific class and slot
+bool IsValidWeaponForClassSlot(const char[] class, const char[] slot, int itemDef)
+{
+    if (itemDef == TF_ITEMDEF_DEFAULT)
+        return true; // Default is always valid
+    
+    if (StrEqual(class, "scout", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_SCOUT_PRIMARY, sizeof(BUYROBOT_SCOUT_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_SCOUT_SECONDARY, sizeof(BUYROBOT_SCOUT_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_SCOUT_MELEE, sizeof(BUYROBOT_SCOUT_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "soldier", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_SOLDIER_PRIMARY, sizeof(BUYROBOT_SOLDIER_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_SOLDIER_SECONDARY, sizeof(BUYROBOT_SOLDIER_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_SOLDIER_MELEE, sizeof(BUYROBOT_SOLDIER_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "pyro", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_PYRO_PRIMARY, sizeof(BUYROBOT_PYRO_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_PYRO_SECONDARY, sizeof(BUYROBOT_PYRO_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_PYRO_MELEE, sizeof(BUYROBOT_PYRO_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "demoman", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_DEMOMAN_PRIMARY, sizeof(BUYROBOT_DEMOMAN_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_DEMOMAN_SECONDARY, sizeof(BUYROBOT_DEMOMAN_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_DEMOMAN_MELEE, sizeof(BUYROBOT_DEMOMAN_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "heavy", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_HEAVY_PRIMARY, sizeof(BUYROBOT_HEAVY_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_HEAVY_SECONDARY, sizeof(BUYROBOT_HEAVY_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_HEAVY_MELEE, sizeof(BUYROBOT_HEAVY_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "engineer", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_ENGINEER_PRIMARY, sizeof(BUYROBOT_ENGINEER_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_ENGINEER_SECONDARY, sizeof(BUYROBOT_ENGINEER_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_ENGINEER_MELEE, sizeof(BUYROBOT_ENGINEER_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "medic", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_MEDIC_PRIMARY, sizeof(BUYROBOT_MEDIC_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_MEDIC_SECONDARY, sizeof(BUYROBOT_MEDIC_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_MEDIC_MELEE, sizeof(BUYROBOT_MEDIC_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "sniper", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return FindIntInArray(BUYROBOT_SNIPER_PRIMARY, sizeof(BUYROBOT_SNIPER_PRIMARY), itemDef) != -1;
+        else if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_SNIPER_SECONDARY, sizeof(BUYROBOT_SNIPER_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_SNIPER_MELEE, sizeof(BUYROBOT_SNIPER_MELEE), itemDef) != -1;
+    }
+    else if (StrEqual(class, "spy", false))
+    {
+        if (StrEqual(slot, "secondary", false))
+            return FindIntInArray(BUYROBOT_SPY_SECONDARY, sizeof(BUYROBOT_SPY_SECONDARY), itemDef) != -1;
+        else if (StrEqual(slot, "melee", false))
+            return FindIntInArray(BUYROBOT_SPY_MELEE, sizeof(BUYROBOT_SPY_MELEE), itemDef) != -1;
+    }
+    
+    return false;
+}
+
+// Helper to find int in array
+int FindIntInArray(const int[] array, int arraySize, int value)
+{
+    for (int i = 0; i < arraySize; i++)
+    {
+        if (array[i] == value)
+            return i;
+    }
+    return -1;
+}
+
+void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int botCount, int category, TFTeam team)
+{
+    // Validate loadout weapons belong to the selected class
+    if (!IsValidWeaponForClassSlot(class, "primary", g_iTempLoadoutPrimary[client]))
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Invalid primary weapon for %s!", class);
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+        return;
+    }
+    if (!IsValidWeaponForClassSlot(class, "secondary", g_iTempLoadoutSecondary[client]))
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Invalid secondary weapon for %s!", class);
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+        return;
+    }
+    if (!IsValidWeaponForClassSlot(class, "melee", g_iTempLoadoutMelee[client]))
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Invalid melee weapon for %s!", class);
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+        return;
+    }
+    
+    if (g_iBuyPlayerPoints[client] < price)
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You need \x07FFD700%d\x01 points", price);
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+        return;
+    }
+    
+    if (GetClientCount() + botCount - 1 >= MaxClients)
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Server is full!");
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+        return;
+    }
+    
+    int currentBots = BuyRobot_GetPurchasedCount();
+    int maxBots = g_cvBuyMaxBots.IntValue;
+    
+    if (currentBots + botCount > maxBots)
+    {
+        int waitingCount = GetWaitingCountForPlayer(client);
+        if (waitingCount + botCount > g_cvMaxWaitingQueuePerPlayer.IntValue)
+        {
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You already have %d robots in waiting queue (max %d)!", 
+                waitingCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+            BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+            return;
+        }
+        
+        if (g_hWaitingQueue.Length + botCount > g_cvMaxWaitingQueueTotal.IntValue)
+        {
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Waiting queue is full! Try again later.");
+            BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+            return;
+        }
+        
+        g_iBuyPlayerPoints[client] -= price;
+        BuyRobot_SavePlayerPoints(client);
+        BuyRobot_SaveAllPoints();
+        
+        int lives = (category == BUY_CATEGORY_GIANT || category == BUY_CATEGORY_BOSS) ? 1 : g_cvBuyDefaultLives.IntValue;
+        
+        char namePrefix[32];
+        if (category == BUY_CATEGORY_GIANT)
+            strcopy(namePrefix, sizeof(namePrefix), "Giant");
+        else if (category == BUY_CATEGORY_BOSS)
+            strcopy(namePrefix, sizeof(namePrefix), "Boss");
+        else
+            namePrefix[0] = '\0';
+        
+        for (int i = 0; i < botCount; i++)
+        {
+            AddToWaitingQueue(client, class, lives, namePrefix, team, price, 1, category, g_iTempLoadoutPrimary[client], g_iTempLoadoutSecondary[client], g_iTempLoadoutMelee[client]);
+        }
+        
+        char className[32];
+        BuyRobot_GetClassName(class, className, sizeof(className));
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Bot limit reached! %d %s added to waiting queue. (Your queue: %d/%d)", 
+            botCount, className, waitingCount + botCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+        
+        if (g_cvBuyNotifyDefenderPurchase.BoolValue)
+        {
+            char teamColor[16];
+            char teamName[16];
+            if (team == TFTeam_Red)
+            {
+                teamColor = "\x07FF4500";
+                teamName = "Mann Co.";
+            }
+            else
+            {
+                teamColor = "\x0742A5F5";
+                teamName = "Invaders";
+            }
+            
+            if (category == BUY_CATEGORY_GIANT)
+            {
+                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! [QUEUED]", 
+                                client, className, teamColor, teamName);
+            }
+            else if (category == BUY_CATEGORY_BOSS)
+            {
+                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x07FF1493Boss %s\x01 robot for %s%s\x01 team! [QUEUED]", 
+                                client, className, teamColor, teamName);
+            }
+            else
+            {
+                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team! [QUEUED]", 
+                                client, botCount, className, teamColor, teamName);
+            }
+        }
+        
+        BuyRobot_ShowMainMenu(client, team);
+        return;
+    }
+    
+    g_iBuyPlayerPoints[client] -= price;
+    BuyRobot_SavePlayerPoints(client);
+    BuyRobot_SaveAllPoints();
+    int lives = (category == BUY_CATEGORY_GIANT || category == BUY_CATEGORY_BOSS) ? 1 : g_cvBuyDefaultLives.IntValue;
+    
+    char namePrefix[32];
+    if (category == BUY_CATEGORY_GIANT)
+        strcopy(namePrefix, sizeof(namePrefix), "Giant");
+    else if (category == BUY_CATEGORY_BOSS)
+        strcopy(namePrefix, sizeof(namePrefix), "Boss");
+    else
+        namePrefix[0] = '\0';
+    
+    for (int i = 0; i < botCount; i++)
+    {
+        BuyRobot_CreateBot(class, client, lives, namePrefix, false, team, g_iTempLoadoutPrimary[client], g_iTempLoadoutSecondary[client], g_iTempLoadoutMelee[client]);
+    }
+    
+    char className[32];
+    BuyRobot_GetClassName(class, className, sizeof(className));
+    
+    if (g_cvBuyNotifyHumanPurchase.BoolValue)
+    {
+        char teamColor[16];
+        char teamName[16];
+        if (team == TFTeam_Red)
+        {
+            teamColor = "\x07FF4500";
+            teamName = "Mann Co.";
+        }
+        else
+        {
+            teamColor = "\x0742A5F5";
+            teamName = "Invaders";
+        }
+        
+        if (category == BUY_CATEGORY_GIANT)
+        {
+            PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! (\x07FFD700%d\x01 points)", 
+                            client, className, teamColor, teamName, price);
+        }
+        else if (category == BUY_CATEGORY_BOSS)
+        {
+            PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x07FF1493Boss %s\x01 robot for %s%s\x01 team! (\x07FFD700%d\x01 points)", 
+                            client, className, teamColor, teamName, price);
+        }
+        else
+        {
+            PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team!", 
+                            client, botCount, className, teamColor, teamName);
+        }
+    }
+    
+    BuyRobot_ShowMainMenu(client, team);
+}
+
 public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, int param2)
 {
     if (action == MenuAction_Select)
@@ -3009,178 +3797,13 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
         teamInt = StringToInt(parts[4]);
         TFTeam team = view_as<TFTeam>(teamInt);
         
-        if (!IsValidClientIndex(client)) return 0;
-        if (TF2_GetClientTeam(client) != team)
-        {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You must be on this team!");
-            return 0;
-        }
-        
-        if (category == BUY_CATEGORY_BOSS)
-        {
-            int bossCount = GetCurrentBossCountForTeam(team);
-            if (bossCount >= g_cvMaxBossPerTeam.IntValue)
-            {
-                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Your team already has a Boss robot! Only 1 Boss allowed per team.");
-                BuyRobot_ShowClassMenu(client, category, team);
-                return 0;
-            }
-        }
-        
-        if (g_iBuyPlayerPoints[client] < price)
-        {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You need \x07FFD700%d\x01 points", price);
-            BuyRobot_ShowClassMenu(client, category, team);
-            return 0;
-        }
-        
-        if (GetClientCount() + botCount - 1 >= MaxClients)
-        {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Server is full!");
-            BuyRobot_ShowClassMenu(client, category, team);
-            return 0;
-        }
-        
-        int currentBots = BuyRobot_GetPurchasedCount();
-        int maxBots = g_cvBuyMaxBots.IntValue;
-        
-        if (currentBots + botCount > maxBots)
-        {
-            int waitingCount = GetWaitingCountForPlayer(client);
-            if (waitingCount + botCount > g_cvMaxWaitingQueuePerPlayer.IntValue)
-            {
-                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You already have %d robots in waiting queue (max %d)!", 
-                    waitingCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
-                BuyRobot_ShowClassMenu(client, category, team);
-                return 0;
-            }
-            
-            if (g_hWaitingQueue.Length + botCount > g_cvMaxWaitingQueueTotal.IntValue)
-            {
-                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Waiting queue is full! Try again later.");
-                BuyRobot_ShowClassMenu(client, category, team);
-                return 0;
-            }
-            
-            g_iBuyPlayerPoints[client] -= price;
-            BuyRobot_SavePlayerPoints(client);
-            BuyRobot_SaveAllPoints();
-            
-            int lives = (category == BUY_CATEGORY_GIANT || category == BUY_CATEGORY_BOSS) ? 1 : g_cvBuyDefaultLives.IntValue;
-            
-            char namePrefix[32];
-            if (category == BUY_CATEGORY_GIANT)
-                strcopy(namePrefix, sizeof(namePrefix), "Giant");
-            else if (category == BUY_CATEGORY_BOSS)
-                strcopy(namePrefix, sizeof(namePrefix), "Boss");
-            else
-                namePrefix[0] = '\0';
-            
-            for (int i = 0; i < botCount; i++)
-            {
-                AddToWaitingQueue(client, class, lives, namePrefix, team, price, 1, category);
-            }
-            
-            char className[32];
-            BuyRobot_GetClassName(class, className, sizeof(className));
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Bot limit reached! %d %s added to waiting queue. (Your queue: %d/%d)", 
-                botCount, className, waitingCount + botCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
-            
-            if (g_cvBuyNotifyHumanPurchase.BoolValue)
-            {
-                char teamColor[16];
-                char teamName[16];
-                if (team == TFTeam_Red)
-                {
-                    teamColor = "\x07FF4500";
-                    teamName = "Mann Co.";
-                }
-                else
-                {
-                    teamColor = "\x0742A5F5";
-                    teamName = "Invaders";
-                }
-                
-                if (category == BUY_CATEGORY_GIANT)
-                {
-                    PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! [QUEUED]", 
-                                    client, className, teamColor, teamName);
-                }
-                else if (category == BUY_CATEGORY_BOSS)
-                {
-                    PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x07FF1493Boss %s\x01 robot for %s%s\x01 team! [QUEUED]", 
-                                    client, className, teamColor, teamName);
-                }
-                else
-                {
-                    PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team! [QUEUED]", 
-                                    client, botCount, className, teamColor, teamName);
-                }
-            }
-            
-            BuyRobot_ShowMainMenu(client, team);
-            return 0;
-        }
-        
-        g_iBuyPlayerPoints[client] -= price;
-        BuyRobot_SavePlayerPoints(client);
-        BuyRobot_SaveAllPoints();
-        int lives = (category == BUY_CATEGORY_GIANT || category == BUY_CATEGORY_BOSS) ? 1 : g_cvBuyDefaultLives.IntValue;
-        
-        char namePrefix[32];
-        if (category == BUY_CATEGORY_GIANT)
-            strcopy(namePrefix, sizeof(namePrefix), "Giant");
-        else if (category == BUY_CATEGORY_BOSS)
-            strcopy(namePrefix, sizeof(namePrefix), "Boss");
-        else
-            namePrefix[0] = '\0';
-        
-        for (int i = 0; i < botCount; i++)
-        {
-            BuyRobot_CreateBot(class, client, lives, namePrefix, false, team);
-        }
-        
-        char className[32];
-        BuyRobot_GetClassName(class, className, sizeof(className));
-        
-        if (g_cvBuyNotifyHumanPurchase.BoolValue)
-        {
-            char teamColor[16];
-            char teamName[16];
-            if (team == TFTeam_Red)
-            {
-                teamColor = "\x07FF4500";
-                teamName = "Mann Co.";
-            }
-            else
-            {
-                teamColor = "\x0742A5F5";
-                teamName = "Invaders";
-            }
-            
-            if (category == BUY_CATEGORY_GIANT)
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! (\x07FFD700%d\x01 points)", 
-                                client, className, teamColor, teamName, price);
-            }
-            else if (category == BUY_CATEGORY_BOSS)
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x07FF1493Boss %s\x01 robot for %s%s\x01 team! (\x07FFD700%d\x01 points)", 
-                                client, className, teamColor, teamName, price);
-            }
-            else
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team!", 
-                                client, botCount, className, teamColor, teamName);
-            }
-        }
-        
-        BuyRobot_ShowMainMenu(client, team);
+        BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
     }
     else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
     {
-        if (IsValidClientIndex(param1)) 
-            BuyRobot_ShowMainMenu(param1, TF2_GetClientTeam(param1));
+        int client = param1;
+        TFTeam team = TF2_GetClientTeam(client);
+        BuyRobot_ShowMainMenu(client, team);
     }
     else if (action == MenuAction_End)
     {
@@ -3189,7 +3812,7 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
     return 0;
 }
 
-void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] prefix = "", bool bSaxtonAI = false, TFTeam team = TFTeam_Red)
+void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] prefix = "", bool bSaxtonAI = false, TFTeam team = TFTeam_Red, int primaryWeapon = TF_ITEMDEF_DEFAULT, int secondaryWeapon = TF_ITEMDEF_DEFAULT, int meleeWeapon = TF_ITEMDEF_DEFAULT)
 {
     char command[256];
     
@@ -3220,6 +3843,9 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     pack.WriteCell(bSaxtonAI);
     pack.WriteCell(view_as<int>(team));
     pack.WriteCell(uniqueID);
+    pack.WriteCell(primaryWeapon);
+    pack.WriteCell(secondaryWeapon);
+    pack.WriteCell(meleeWeapon);
     CreateTimer(0.1, BuyRobot_SetupBot, pack, TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -3236,6 +3862,9 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     int teamInt = pack.ReadCell();
     TFTeam team = view_as<TFTeam>(teamInt);
     int uniqueID = pack.ReadCell();
+    int primaryWeapon = pack.ReadCell();
+    int secondaryWeapon = pack.ReadCell();
+    int meleeWeapon = pack.ReadCell();
     delete pack;
     
     char searchTag[32];
@@ -3287,11 +3916,22 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     
     int client = found;
     
-    g_bBuyIsPurchasedRobot[client] = true;
-    g_bBuyIsAIRobot[client] = bSaxtonAI;
-    
     g_iBuyRobotLives[client] = lives;
     g_iBuyRobotOwner[client] = buyer;
+    
+    // Set custom loadout before marking the bot as purchased to avoid early randomization.
+    if (primaryWeapon != TF_ITEMDEF_DEFAULT)
+        m_iWeaponPrimary[client] = primaryWeapon;
+    if (secondaryWeapon != TF_ITEMDEF_DEFAULT)
+        m_iWeaponSecondary[client] = secondaryWeapon;
+    if (meleeWeapon != TF_ITEMDEF_DEFAULT)
+        m_iWeaponMelee[client] = meleeWeapon;
+
+    if (primaryWeapon != TF_ITEMDEF_DEFAULT || secondaryWeapon != TF_ITEMDEF_DEFAULT || meleeWeapon != TF_ITEMDEF_DEFAULT)
+        g_bHasCustomLoadout[client] = true;
+
+    g_bBuyIsPurchasedRobot[client] = true;
+    g_bBuyIsAIRobot[client] = bSaxtonAI;
     
     TF2_ChangeClientTeam(client, team);
     
@@ -7656,4 +8296,62 @@ void BuyRobot_OnMapStart()
     BuyRobot_LoadAllPoints();
 
     CreateTimer(3.0, Timer_DelayedPointsLoad, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Command_CheckLoadout(int client, int args)
+{
+    if (args < 1)
+    {
+        ReplyToCommand(client, "Usage: sm_checkloadout <botid>");
+        return Plugin_Handled;
+    }
+    char arg[32];
+    GetCmdArg(1, arg, sizeof(arg));
+    int bot = StringToInt(arg);
+    if (!IsValidClientIndex(bot) || !IsFakeClient(bot))
+    {
+        ReplyToCommand(client, "Invalid bot ID");
+        return Plugin_Handled;
+    }
+    char weaponName[64];
+    if (TF2Econ_GetItemName(m_iWeaponPrimary[bot], weaponName, sizeof(weaponName)))
+        ReplyToCommand(client, "Primary: %s", weaponName);
+    else
+        ReplyToCommand(client, "Primary: Unknown (%d)", m_iWeaponPrimary[bot]);
+    if (TF2Econ_GetItemName(m_iWeaponSecondary[bot], weaponName, sizeof(weaponName)))
+        ReplyToCommand(client, "Secondary: %s", weaponName);
+    else
+        ReplyToCommand(client, "Secondary: Unknown (%d)", m_iWeaponSecondary[bot]);
+    if (TF2Econ_GetItemName(m_iWeaponMelee[bot], weaponName, sizeof(weaponName)))
+        ReplyToCommand(client, "Melee: %s", weaponName);
+    else
+        ReplyToCommand(client, "Melee: Unknown (%d)", m_iWeaponMelee[bot]);
+    return Plugin_Handled;
+}
+
+public Action Command_SetLoadout(int client, int args)
+{
+    if (args < 4)
+    {
+        ReplyToCommand(client, "Usage: sm_setloadout <botid> <primary> <secondary> <melee>");
+        return Plugin_Handled;
+    }
+    char arg[32];
+    GetCmdArg(1, arg, sizeof(arg));
+    int bot = StringToInt(arg);
+    if (!IsValidClientIndex(bot) || !IsFakeClient(bot))
+    {
+        ReplyToCommand(client, "Invalid bot ID");
+        return Plugin_Handled;
+    }
+    GetCmdArg(2, arg, sizeof(arg));
+    m_iWeaponPrimary[bot] = StringToInt(arg);
+    GetCmdArg(3, arg, sizeof(arg));
+    m_iWeaponSecondary[bot] = StringToInt(arg);
+    GetCmdArg(4, arg, sizeof(arg));
+    m_iWeaponMelee[bot] = StringToInt(arg);
+    // Apply immediately
+    CreateTimer(0.1, Timer_GiveCustomLoadout, bot);
+    ReplyToCommand(client, "Loadout set for bot %d", bot);
+    return Plugin_Handled;
 }

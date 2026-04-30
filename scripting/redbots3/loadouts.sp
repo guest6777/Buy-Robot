@@ -88,10 +88,10 @@ bool g_bHasCustomLoadout[MAXPLAYERS + 1];
 bool g_bHasBoughtUpgrades[MAXPLAYERS + 1];
 
 //Each cell is a weapon item definiton index
-static int m_iWeaponPrimary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
-static int m_iWeaponSecondary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
-static int m_iWeaponMelee[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
-static int m_iWeaponPDA2[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int m_iWeaponPrimary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int m_iWeaponSecondary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int m_iWeaponMelee[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
+int m_iWeaponPDA2[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
 
 //Each cell is an attribute index
 static int m_iAttribPrimary[MAXPLAYERS + 1][MAX_RUNTIME_ATTRIBUTES];
@@ -309,65 +309,63 @@ void ClearSavedAttributes(int client)
 
 void PrepareCustomLoadout(int client)
 {
-    if (g_bBuyIsPurchasedRobot[client])
+    if (g_bBuyIsPurchasedRobot[client] && !g_bHasCustomLoadout[client])
     {
-        switch(TF2_GetPlayerClass(client))
+        int playerClass = TF2_GetPlayerClass(client);
+        if (playerClass == TFClass_Scout)
         {
-            case TFClass_Scout:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_SCOUT_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_SCOUT_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_SCOUT_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_MELEE) - 1)];
-            }
-            case TFClass_Soldier:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_SOLDIER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_SOLDIER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_SOLDIER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_MELEE) - 1)];
-            }
-            case TFClass_Pyro:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_PYRO_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_PYRO_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_PYRO_MELEE[GetRandomInt(0, sizeof(BUYROBOT_PYRO_MELEE) - 1)];
-            }
-            case TFClass_DemoMan:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_DEMOMAN_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_DEMOMAN_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_DEMOMAN_MELEE[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_MELEE) - 1)];
-            }
-            case TFClass_Heavy:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_HEAVY_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_HEAVY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_HEAVY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_MELEE) - 1)];
-            }
-            case TFClass_Engineer:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_ENGINEER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_ENGINEER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_ENGINEER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_MELEE) - 1)];
-            }
-            case TFClass_Medic:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_MEDIC_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_MEDIC_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_MEDIC_MELEE[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_MELEE) - 1)];
-            }
-            case TFClass_Sniper:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_SNIPER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_PRIMARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_SNIPER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_SECONDARY) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_SNIPER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_MELEE) - 1)];
-            }
-            case TFClass_Spy:
-            {
-                m_iWeaponPrimary[client] = BUYROBOT_SPY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SPY_SECONDARY) - 1)];
-                m_iWeaponSecondary[client] = BUYROBOT_SPY_BUILDING[GetRandomInt(0, sizeof(BUYROBOT_SPY_BUILDING) - 1)];
-                m_iWeaponMelee[client] = BUYROBOT_SPY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SPY_MELEE) - 1)];
-                m_iWeaponPDA2[client] = BUYROBOT_SPY_PDA2[GetRandomInt(0, sizeof(BUYROBOT_SPY_PDA2) - 1)];
-            }
+            m_iWeaponPrimary[client] = BUYROBOT_SCOUT_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_SCOUT_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_SCOUT_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Soldier)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_SOLDIER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_SOLDIER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_SOLDIER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Pyro)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_PYRO_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_PYRO_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_PYRO_MELEE[GetRandomInt(0, sizeof(BUYROBOT_PYRO_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_DemoMan)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_DEMOMAN_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_DEMOMAN_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_DEMOMAN_MELEE[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Heavy)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_HEAVY_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_HEAVY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_HEAVY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Engineer)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_ENGINEER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_ENGINEER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_ENGINEER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Medic)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_MEDIC_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_MEDIC_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_MEDIC_MELEE[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Sniper)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_SNIPER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_PRIMARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_SNIPER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_SECONDARY) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_SNIPER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_MELEE) - 1)];
+        }
+        else if (playerClass == TFClass_Spy)
+        {
+            m_iWeaponPrimary[client] = BUYROBOT_SPY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SPY_SECONDARY) - 1)];
+            m_iWeaponSecondary[client] = BUYROBOT_SPY_BUILDING[GetRandomInt(0, sizeof(BUYROBOT_SPY_BUILDING) - 1)];
+            m_iWeaponMelee[client] = BUYROBOT_SPY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SPY_MELEE) - 1)];
+            m_iWeaponPDA2[client] = BUYROBOT_SPY_PDA2[GetRandomInt(0, sizeof(BUYROBOT_SPY_PDA2) - 1)];
         }
         
         g_bHasCustomLoadout[client] = true;
