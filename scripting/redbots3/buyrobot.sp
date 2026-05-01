@@ -3050,9 +3050,9 @@ void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int bot
     Menu menu = new Menu(BuyRobot_MenuLoadoutHandler);
     menu.SetTitle("Edit Loadout\nClass: %s\nPrice: %d points\nPrimary: %s\nSecondary: %s\nMelee: %s\n ", 
         class, price, 
-        g_iTempLoadoutPrimary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default",
-        g_iTempLoadoutSecondary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default",
-        g_iTempLoadoutMelee[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Default");
+        g_iTempLoadoutPrimary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Random",
+        g_iTempLoadoutSecondary[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Random",
+        g_iTempLoadoutMelee[client] != TF_ITEMDEF_DEFAULT ? "Custom" : "Random");
     
     char info[128];
     Format(info, sizeof(info), "primary %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
@@ -3063,6 +3063,9 @@ void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int bot
     
     Format(info, sizeof(info), "melee %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
     menu.AddItem(info, "Edit Melee Weapon");
+    
+    Format(info, sizeof(info), "reset %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
+    menu.AddItem(info, "Reset Loadout");
     
     Format(info, sizeof(info), "confirm %s %d %d %d %d", class, price, botCount, category, view_as<int>(team));
     menu.AddItem(info, "Confirm Purchase");
@@ -3103,6 +3106,14 @@ public int BuyRobot_MenuLoadoutHandler(Menu menu, MenuAction action, int param1,
         else if (StrEqual(slot, "melee"))
         {
             BuyRobot_ShowWeaponMenu(client, class, "melee", price, botCount, category, team);
+        }
+        else if (StrEqual(slot, "reset"))
+        {
+            g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
+            g_iTempLoadoutSecondary[client] = TF_ITEMDEF_DEFAULT;
+            g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Loadout reset!");
+            BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
         }
         else if (StrEqual(slot, "confirm"))
         {
@@ -3453,10 +3464,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
-    // Add default option
-    Format(menuInfo, sizeof(menuInfo), "%d %s %s %d %d %d %d", TF_ITEMDEF_DEFAULT, slot, class, price, botCount, category, view_as<int>(team));
-    menu.AddItem(menuInfo, "Default Weapon");
     
     menu.ExitBackButton = true;
     menu.ExitButton = true;
@@ -3857,6 +3864,90 @@ void BuyRobot_CreateBot(const char[] class, int buyer, int lives, const char[] p
     CreateTimer(0.1, BuyRobot_SetupBot, pack, TIMER_FLAG_NO_MAPCHANGE);
 }
 
+int GetRandomWeaponForClassSlot(const char[] class, const char[] slot)
+{
+    if (StrEqual(class, "scout", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_SCOUT_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_SCOUT_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_SCOUT_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "soldier", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_SOLDIER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_SOLDIER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_SOLDIER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SOLDIER_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "pyro", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_PYRO_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_PYRO_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_PYRO_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_PYRO_MELEE[GetRandomInt(0, sizeof(BUYROBOT_PYRO_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "demoman", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_DEMOMAN_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_DEMOMAN_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_DEMOMAN_MELEE[GetRandomInt(0, sizeof(BUYROBOT_DEMOMAN_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "heavy", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_HEAVY_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_HEAVY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_HEAVY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_HEAVY_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "engineer", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_ENGINEER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_ENGINEER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_ENGINEER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_ENGINEER_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "medic", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_MEDIC_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_MEDIC_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_MEDIC_MELEE[GetRandomInt(0, sizeof(BUYROBOT_MEDIC_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "sniper", false))
+    {
+        if (StrEqual(slot, "primary", false))
+            return BUYROBOT_SNIPER_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_PRIMARY) - 1)];
+        else if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_SNIPER_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_SNIPER_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SNIPER_MELEE) - 1)];
+    }
+    else if (StrEqual(class, "spy", false))
+    {
+        if (StrEqual(slot, "secondary", false))
+            return BUYROBOT_SPY_SECONDARY[GetRandomInt(0, sizeof(BUYROBOT_SPY_SECONDARY) - 1)];
+        else if (StrEqual(slot, "melee", false))
+            return BUYROBOT_SPY_MELEE[GetRandomInt(0, sizeof(BUYROBOT_SPY_MELEE) - 1)];
+    }
+    return TF_ITEMDEF_DEFAULT;
+}
+
 public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
 {
     pack.Reset();
@@ -3930,10 +4021,18 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     // Set custom loadout before marking the bot as purchased to avoid early randomization.
     if (primaryWeapon != TF_ITEMDEF_DEFAULT)
         m_iWeaponPrimary[client] = primaryWeapon;
+    else
+        m_iWeaponPrimary[client] = GetRandomWeaponForClassSlot(class, "primary");
+
     if (secondaryWeapon != TF_ITEMDEF_DEFAULT)
         m_iWeaponSecondary[client] = secondaryWeapon;
+    else
+        m_iWeaponSecondary[client] = GetRandomWeaponForClassSlot(class, "secondary");
+
     if (meleeWeapon != TF_ITEMDEF_DEFAULT)
         m_iWeaponMelee[client] = meleeWeapon;
+    else
+        m_iWeaponMelee[client] = GetRandomWeaponForClassSlot(class, "melee");
 
     if (primaryWeapon != TF_ITEMDEF_DEFAULT || secondaryWeapon != TF_ITEMDEF_DEFAULT || meleeWeapon != TF_ITEMDEF_DEFAULT)
         g_bHasCustomLoadout[client] = true;
@@ -6390,16 +6489,16 @@ void BuyRobot_GetClassNameForSound(TFClassType class, char[] buffer, int maxlen)
 {
     switch (class)
     {
-        case TFClass_Soldier: strcopy(buffer, maxlen, "soldier");
-        case TFClass_Pyro: strcopy(buffer, maxlen, "pyro");
-        case TFClass_DemoMan: strcopy(buffer, maxlen, "demoman");
-        case TFClass_Heavy: strcopy(buffer, maxlen, "heavy");
-        case TFClass_Engineer: strcopy(buffer, maxlen, "engineer");
-        case TFClass_Medic: strcopy(buffer, maxlen, "medic");
-        case TFClass_Spy: strcopy(buffer, maxlen, "spy");
-        case TFClass_Scout: strcopy(buffer, maxlen, "scout");
-        case TFClass_Sniper: strcopy(buffer, maxlen, "sniper");
-        default: strcopy(buffer, maxlen, "robot");
+        case TFClass_Soldier: strcopy(buffer, maxlen, "Soldier");
+        case TFClass_Pyro: strcopy(buffer, maxlen, "Pyro");
+        case TFClass_DemoMan: strcopy(buffer, maxlen, "Demoman");
+        case TFClass_Heavy: strcopy(buffer, maxlen, "Heavy");
+        case TFClass_Engineer: strcopy(buffer, maxlen, "Engineer");
+        case TFClass_Medic: strcopy(buffer, maxlen, "Medic");
+        case TFClass_Spy: strcopy(buffer, maxlen, "Spy");
+        case TFClass_Scout: strcopy(buffer, maxlen, "Scout");
+        case TFClass_Sniper: strcopy(buffer, maxlen, "Sniper");
+        default: strcopy(buffer, maxlen, "Robot");
     }
 }
 
