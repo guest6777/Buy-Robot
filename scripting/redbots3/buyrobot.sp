@@ -4322,6 +4322,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
+	TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo primary increased"))
@@ -4331,10 +4332,17 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
+	TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon2, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo secondary increased"))
             TF2Attrib_SetByName(weapon2, "maxammo secondary increased", 999.0);
+    }
+    
+    int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+    if (melee != -1) 
+    {
+	TF2Attrib_SetByName(melee, "damage bonus", 2.7);
     }
     
     if (class == TFClass_Engineer)
@@ -4516,7 +4524,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 3.6);
+	TF2Attrib_SetByName(melee, "damage bonus", 5.6);
         TF2Attrib_SetByName(melee, "fire rate bonus", 0.3);
     }
     
@@ -5027,6 +5035,7 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
+	TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo primary increased"))
@@ -5036,10 +5045,17 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
+	TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon2, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo secondary increased"))
             TF2Attrib_SetByName(weapon2, "maxammo secondary increased", 999.0);
+    }
+    
+    int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+    if (melee != -1) 
+    {
+	TF2Attrib_SetByName(melee, "damage bonus", 2.7);
     }
 }
 
@@ -5074,8 +5090,8 @@ void BuyRobot_ReapplyBossWeaponsAttributes(int client)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 3.6);
-        TF2Attrib_SetByName(melee, "fire rate bonus", 0.3);
+	TF2Attrib_SetByName(melee, "damage bonus", 5.6);
+        TF2Attrib_SetByName(melee, "fire rate bonus", 0.4);
     }
 }
 
@@ -5708,99 +5724,123 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     if (bossesToSend > bossSpace) bossesToSend = bossSpace;
     
     char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
+    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy"};
     
-    int classCount[9] = {0,0,0,0,0,0,0,0,0};
-    int created = 0;
+    StringMap normalMap = new StringMap();
+    StringMap giantMap = new StringMap();
+    StringMap bossMap = new StringMap();
+    int totalAdded = 0;
     
-for (int i = 0; i < bossesToSend; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Red);
-    created++;
-    classCount[selected]++;
-}
-
-for (int i = 0; i < giantsToSend; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Red);
-    created++;
-    classCount[selected]++;
-}
-
-int normalToAdd = count - giantsToSend - bossesToSend;
-if (normalToAdd < 0) normalToAdd = 0;
-
-for (int i = 0; i < normalToAdd; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Red);
-    created++;
-    classCount[selected]++;
-}
-    
-    if (created == 0)
-        return;
-    
-    char classList[256];
-    classList[0] = '\0';
-    bool first = true;
-    
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < bossesToSend; i++)
     {
-        if (classCount[i] > 0)
-        {
-            char displayName[32];
-            BuyRobot_GetClassName(classes[i], displayName, sizeof(displayName));
-            
-            if (!first)
-                StrCat(classList, sizeof(classList), ", ");
-            
-            if (classCount[i] > 1)
-                Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
-            else
-                Format(classList, sizeof(classList), "%s%s", classList, displayName);
-            
-            first = false;
-        }
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Red);
+        
+        int currentCount;
+        bossMap.GetValue(classNames[selected], currentCount);
+        bossMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    for (int i = 0; i < giantsToSend; i++)
+    {
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Red);
+        
+        int currentCount;
+        giantMap.GetValue(classNames[selected], currentCount);
+        giantMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    int normalToAdd = count - giantsToSend - bossesToSend;
+    if (normalToAdd < 0) normalToAdd = 0;
+    
+    for (int i = 0; i < normalToAdd; i++)
+    {
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Red);
+        
+        int currentCount;
+        normalMap.GetValue(classNames[selected], currentCount);
+        normalMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    if (totalAdded == 0)
+    {
+        delete normalMap;
+        delete giantMap;
+        delete bossMap;
+        return;
     }
     
     char finalMessage[512];
-    char messages[5][256];
+    char messages[15][256];
     
-    if (bossesToSend > 0)
+    messages[0] = "\x07FF4500Saxton Hale\x01: Reinforcements! Let's punch them! |";
+    messages[1] = "\x07FF4500Saxton Hale\x01: More bots! Now THIS is a fight! |";
+    messages[2] = "\x07FF4500Saxton Hale\x01: Backup's here! Time to dominate! |";
+    messages[3] = "\x07FF4500Saxton Hale\x01: Mann Co. sends its finest! |";
+    messages[4] = "\x07FF4500Saxton Hale\x01: SAXTON HALE! *eagle screech* |";
+    messages[5] = "\x07FF4500Saxton Hale\x01: Let's show them Aussie power! |";
+    messages[6] = "\x07FF4500Saxton Hale\x01: More muscle incoming! |";
+    messages[7] = "\x07FF4500Saxton Hale\x01: Punch first, ask never! |";
+    messages[8] = "\x07FF4500Saxton Hale\x01: Gray Mann's scrap metal won't win! |";
+    messages[9] = "\x07FF4500Saxton Hale\x01: I love a good brawl! Deploying! |";
+    messages[10] = "\x07FF4500Saxton Hale\x01: Extra firepower en route! |";
+    messages[11] = "\x07FF4500Saxton Hale\x01: More robots = more punching! |";
+    messages[12] = "\x07FF4500Saxton Hale\x01: We don't retreat, we reload! |";
+    messages[13] = "\x07FF4500Saxton Hale\x01: Mann Co. guarantees pain! |";
+    messages[14] = "\x07FF4500Saxton Hale\x01: Time to smash some tin cans! |";
+    
+    Format(finalMessage, sizeof(finalMessage), "%s ", messages[GetRandomInt(0, 14)]);
+    
+    StringMapSnapshot snap = normalMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x07FF4500Saxton Hale\x01: Sending reinforcements: %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        messages[1] = "\x07FF4500Saxton Hale\x01: Reinforcements inbound: %s + \x07FF1493%d BOSS(s)\x01!";
-        messages[2] = "\x07FF4500Saxton Hale\x01: Deploying: %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        messages[3] = "\x07FF4500Saxton Hale\x01: Backup arriving: %s + \x07FF1493%d BOSS(s)\x01!";
-        messages[4] = "\x07FF4500Saxton Hale\x01: Extra unit(s): %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, bossesToSend);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        normalMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x07FFD700%d %s\x01, ", finalMessage, classCount, className);
     }
-    else if (giantsToSend > 0)
+    delete snap;
+    
+    snap = giantMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x07FF4500Saxton Hale\x01: Sending reinforcements: %s + \x078B008B%d Giant Robot(s)\x01!";
-        messages[1] = "\x07FF4500Saxton Hale\x01: Reinforcements inbound: %s + \x078B008B%d Giant(s)\x01!";
-        messages[2] = "\x07FF4500Saxton Hale\x01: Deploying: %s + \x078B008B%d Giant Robot(s)\x01!";
-        messages[3] = "\x07FF4500Saxton Hale\x01: Backup arriving: %s + \x078B008B%d Giant(s)\x01!";
-        messages[4] = "\x07FF4500Saxton Hale\x01: Extra unit(s): %s + \x078B008B%d Giant Robot(s)\x01!";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, giantsToSend);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        giantMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x078B008B%d Giant %s\x01, ", finalMessage, classCount, className);
     }
-    else
+    delete snap;
+    
+    snap = bossMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x07FF4500Saxton Hale\x01: Sending reinforcements: %s, %d unit(s)";
-        messages[1] = "\x07FF4500Saxton Hale\x01: Reinforcements inbound: %s, %d unit(s)";
-        messages[2] = "\x07FF4500Saxton Hale\x01: Deploying: %s, %d unit(s)";
-        messages[3] = "\x07FF4500Saxton Hale\x01: Backup arriving: %s, %d unit(s)";
-        messages[4] = "\x07FF4500Saxton Hale\x01: Extra unit(s): %s, %d unit(s)";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, created);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        bossMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x07FF1493%d Boss %s\x01, ", finalMessage, classCount, className);
     }
+    delete snap;
+    
+    int len = strlen(finalMessage);
+    if (len > 2 && finalMessage[len - 2] == ',')
+        finalMessage[len - 2] = '\0';
+    
+    Format(finalMessage, sizeof(finalMessage), "%s\x01 | Total: %d", finalMessage, totalAdded);
+    
+    delete normalMap;
+    delete giantMap;
+    delete bossMap;
     
     PrintToChatAll("%s", finalMessage);
 }
@@ -5942,99 +5982,123 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     if (bossesToSend > bossSpace) bossesToSend = bossSpace;
     
     char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
+    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy"};
     
-    int classCount[9] = {0,0,0,0,0,0,0,0,0};
-    int created = 0;
+    StringMap normalMap = new StringMap();
+    StringMap giantMap = new StringMap();
+    StringMap bossMap = new StringMap();
+    int totalAdded = 0;
     
-for (int i = 0; i < bossesToSend; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Blue);
-    created++;
-    classCount[selected]++;
-}
-
-for (int i = 0; i < giantsToSend; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Blue);
-    created++;
-    classCount[selected]++;
-}
-
-int normalToAdd = count - giantsToSend - bossesToSend;
-if (normalToAdd < 0) normalToAdd = 0;
-
-for (int i = 0; i < normalToAdd; i++)
-{
-    if (GetTotalBotsCount() >= maxBots) break;
-    int selected = GetRandomInt(0, sizeof(classes) - 1);
-    
-    BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Blue);
-    created++;
-    classCount[selected]++;
-}
-    
-    if (created == 0)
-        return;
-    
-    char classList[256];
-    classList[0] = '\0';
-    bool first = true;
-    
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < bossesToSend; i++)
     {
-        if (classCount[i] > 0)
-        {
-            char displayName[32];
-            BuyRobot_GetClassName(classes[i], displayName, sizeof(displayName));
-            
-            if (!first)
-                StrCat(classList, sizeof(classList), ", ");
-            
-            if (classCount[i] > 1)
-                Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
-            else
-                Format(classList, sizeof(classList), "%s%s", classList, displayName);
-            
-            first = false;
-        }
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Blue);
+        
+        int currentCount;
+        bossMap.GetValue(classNames[selected], currentCount);
+        bossMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    for (int i = 0; i < giantsToSend; i++)
+    {
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Blue);
+        
+        int currentCount;
+        giantMap.GetValue(classNames[selected], currentCount);
+        giantMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    int normalToAdd = count - giantsToSend - bossesToSend;
+    if (normalToAdd < 0) normalToAdd = 0;
+    
+    for (int i = 0; i < normalToAdd; i++)
+    {
+        if (GetTotalBotsCount() >= maxBots) break;
+        int selected = GetRandomInt(0, sizeof(classes) - 1);
+        BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Blue);
+        
+        int currentCount;
+        normalMap.GetValue(classNames[selected], currentCount);
+        normalMap.SetValue(classNames[selected], currentCount + 1);
+        totalAdded++;
+    }
+    
+    if (totalAdded == 0)
+    {
+        delete normalMap;
+        delete giantMap;
+        delete bossMap;
+        return;
     }
     
     char finalMessage[512];
-    char messages[5][256];
+    char messages[15][256];
     
-    if (bossesToSend > 0)
+    messages[0] = "\x075A9BDFGray Mann\x01: Reinforcements deployed |";
+    messages[1] = "\x075A9BDFGray Mann\x01: More units en route |";
+    messages[2] = "\x075A9BDFGray Mann\x01: Backup arriving, Efficient |";
+    messages[3] = "\x075A9BDFGray Mann\x01: Machines don't stop. |";
+    messages[4] = "\x075A9BDFGray Mann\x01: Numbers don't lie |";
+    messages[5] = "\x075A9BDFGray Mann\x01: Overwhelming force deployed |";
+    messages[6] = "\x075A9BDFGray Mann\x01: Profit dictates more robots |";
+    messages[7] = "\x075A9BDFGray Mann\x01: Efficiency is key. Deploying |";
+    messages[8] = "\x075A9BDFGray Mann\x01: More scrap for the fight |";
+    messages[9] = "\x075A9BDFGray Mann\x01: Resistance is irrelevant |";
+    messages[10] = "\x075A9BDFGray Mann\x01: Additional units sent |";
+    messages[11] = "\x075A9BDFGray Mann\x01: Gray Industries delivers |";
+    messages[12] = "\x075A9BDFGray Mann\x01: More bots, less problems |";
+    messages[13] = "\x075A9BDFGray Mann\x01: The old fool can't keep up |";
+    messages[14] = "\x075A9BDFGray Mann\x01: Robots are the future, Deploying |";
+    
+    Format(finalMessage, sizeof(finalMessage), "%s ", messages[GetRandomInt(0, 14)]);
+    
+    StringMapSnapshot snap = normalMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x075A9BDFGray Mann\x01: Sending reinforcements: %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        messages[1] = "\x075A9BDFGray Mann\x01: Reinforcements inbound: %s + \x07FF1493%d BOSS(s)\x01!";
-        messages[2] = "\x075A9BDFGray Mann\x01: Deploying: %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        messages[3] = "\x075A9BDFGray Mann\x01: Backup arriving: %s + \x07FF1493%d BOSS(s)\x01!";
-        messages[4] = "\x075A9BDFGray Mann\x01: Extra unit(s): %s + \x07FF1493%d BOSS Robot(s)\x01!";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, bossesToSend);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        normalMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x07FFD700%d %s\x01, ", finalMessage, classCount, className);
     }
-    else if (giantsToSend > 0)
+    delete snap;
+    
+    snap = giantMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x075A9BDFGray Mann\x01: Sending reinforcements: %s + \x078B008B%d Giant Robot(s)\x01!";
-        messages[1] = "\x075A9BDFGray Mann\x01: Reinforcements inbound: %s + \x078B008B%d Giant(s)\x01!";
-        messages[2] = "\x075A9BDFGray Mann\x01: Deploying: %s + \x078B008B%d Giant Robot(s)\x01!";
-        messages[3] = "\x075A9BDFGray Mann\x01: Backup arriving: %s + \x078B008B%d Giant(s)\x01!";
-        messages[4] = "\x075A9BDFGray Mann\x01: Extra unit(s): %s + \x078B008B%d Giant Robot(s)\x01!";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, giantsToSend);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        giantMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x078B008B%d Giant %s\x01, ", finalMessage, classCount, className);
     }
-    else
+    delete snap;
+    
+    snap = bossMap.Snapshot();
+    for (int i = 0; i < snap.Length; i++)
     {
-        messages[0] = "\x075A9BDFGray Mann\x01: Sending reinforcements: %s, %d unit(s)";
-        messages[1] = "\x075A9BDFGray Mann\x01: Reinforcements inbound: %s, %d unit(s)";
-        messages[2] = "\x075A9BDFGray Mann\x01: Deploying: %s, %d unit(s)";
-        messages[3] = "\x075A9BDFGray Mann\x01: Backup arriving: %s, %d unit(s)";
-        messages[4] = "\x075A9BDFGray Mann\x01: Extra unit(s): %s, %d unit(s)";
-        Format(finalMessage, sizeof(finalMessage), messages[GetRandomInt(0, 4)], classList, created);
+        char className[32];
+        snap.GetKey(i, className, sizeof(className));
+        int classCount;
+        bossMap.GetValue(className, classCount);
+        Format(finalMessage, sizeof(finalMessage), "%s\x07FF1493%d Boss %s\x01, ", finalMessage, classCount, className);
     }
+    delete snap;
+    
+    int len = strlen(finalMessage);
+    if (len > 2 && finalMessage[len - 2] == ',')
+        finalMessage[len - 2] = '\0';
+    
+    Format(finalMessage, sizeof(finalMessage), "%s\x01 | Total: %d", finalMessage, totalAdded);
+    
+    delete normalMap;
+    delete giantMap;
+    delete bossMap;
     
     PrintToChatAll("%s", finalMessage);
 }
