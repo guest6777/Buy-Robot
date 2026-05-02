@@ -5724,7 +5724,7 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     if (bossesToSend > bossSpace) bossesToSend = bossSpace;
     
     char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
-    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy"};
+    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Spy", "Sniper"};
     
     StringMap normalMap = new StringMap();
     StringMap giantMap = new StringMap();
@@ -5982,7 +5982,7 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     if (bossesToSend > bossSpace) bossesToSend = bossSpace;
     
     char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
-    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy"};
+    char classNames[][] = {"Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Spy", "Sniper"};
     
     StringMap normalMap = new StringMap();
     StringMap giantMap = new StringMap();
@@ -6042,11 +6042,11 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     messages[0] = "\x075A9BDFGray Mann\x01: Reinforcements deployed |";
     messages[1] = "\x075A9BDFGray Mann\x01: More units en route |";
     messages[2] = "\x075A9BDFGray Mann\x01: Backup arriving, Efficient |";
-    messages[3] = "\x075A9BDFGray Mann\x01: Machines don't stop. |";
+    messages[3] = "\x075A9BDFGray Mann\x01: Machines don't stop |";
     messages[4] = "\x075A9BDFGray Mann\x01: Numbers don't lie |";
     messages[5] = "\x075A9BDFGray Mann\x01: Overwhelming force deployed |";
     messages[6] = "\x075A9BDFGray Mann\x01: Profit dictates more robots |";
-    messages[7] = "\x075A9BDFGray Mann\x01: Efficiency is key. Deploying |";
+    messages[7] = "\x075A9BDFGray Mann\x01: Efficiency is key, Deploying |";
     messages[8] = "\x075A9BDFGray Mann\x01: More scrap for the fight |";
     messages[9] = "\x075A9BDFGray Mann\x01: Resistance is irrelevant |";
     messages[10] = "\x075A9BDFGray Mann\x01: Additional units sent |";
