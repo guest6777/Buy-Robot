@@ -478,7 +478,6 @@ void BuyRobot_Init()
     
     HookEvent("player_death", BuyRobot_EventDeath);
     HookEvent("player_spawn", BuyRobot_EventSpawn);
-    HookEvent("player_team", BuyRobot_EventTeamChange);
     HookEvent("mvm_begin_wave", BuyRobot_WaveBegin);
     HookEvent("mvm_wave_complete", BuyRobot_WaveEnd);
     HookEvent("mvm_wave_failed", BuyRobot_WaveEnd);
@@ -5377,6 +5376,11 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
                 AcceptEntityInput(ent, "Kill");
             }
         }
+
+        if (TF2_GetClientTeam(victim) == TFTeam_Blue)
+        {
+                RemoveRobotFromWaveBar(victim);
+        }
         
         char victimName[64];
         GetClientName(victim, victimName, sizeof(victimName));
@@ -5387,11 +5391,6 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
         if (isVictimGiant || isVictimBoss)
         {
             g_iBuyRobotLives[victim] = 0;
-            
-            if (TF2_GetClientTeam(victim) == TFTeam_Blue)
-            {
-                RemoveRobotFromWaveBar(victim);
-            }
             
             int owner = g_iBuyRobotOwner[victim];
             
@@ -5415,11 +5414,6 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
         
         if (g_iBuyRobotLives[victim] <= 0)
         {
-            if (TF2_GetClientTeam(victim) == TFTeam_Blue)
-            {
-                RemoveRobotFromWaveBar(victim);
-            }
-            
             if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
             {
                 PrintToChat(owner, "\x0732CD32[Buy Robot]\x01 Your robot \x078B008B%s\x01 has run out of lives and will be removed!", victimName);
@@ -5446,22 +5440,6 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
         {
             Timer_ProcessWaitingQueue(null);
         }
-    }
-    
-    return Plugin_Continue;
-}
-
-public Action BuyRobot_EventTeamChange(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
-    int team = event.GetInt("team");
-    
-    if (!g_bBuyIsPurchasedRobot[client])
-        return Plugin_Continue;
-    
-    if (team == view_as<int>(TFTeam_Spectator))
-    {
-        BuyRobot_CleanupBot(client);
     }
     
     return Plugin_Continue;
@@ -6834,6 +6812,11 @@ public Action Timer_RespawnAtSpawnPoint(Handle timer, int userid)
     if (!client || !IsClientInGame(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
     TF2_RespawnPlayer(client);
+
+    if (TF2_GetClientTeam(client) == TFTeam_Blue)
+    {
+        CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+    }
     
     int owner = g_iBuyRobotOwner[client];
     if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
@@ -7853,11 +7836,15 @@ public void OnClientPostAdminCheck(int client)
 public void Event_PlayerDisconnect(Event event, const char[] name, bool dontBroadcast)
 {
     int client = GetClientOfUserId(event.GetInt("userid"));
+    
+    if (client && IsFakeClient(client) && g_bIsDefenderBot[client] && !g_bBuyIsPurchasedRobot[client])
+        return;
+    
     if (client && !IsFakeClient(client))
     {
         BuyRobot_SavePlayerPoints(client);
         BuyRobot_SaveAllPoints();
-	ClearWaitingQueueForPlayer(client);
+        ClearWaitingQueueForPlayer(client);
     }
 }
 

@@ -118,6 +118,7 @@ Handle g_hGlobalSpotTimer = INVALID_HANDLE;
 ArrayList g_hTeleporterEntranceSpots = null;
 char g_sTeleporterConfigFile[PLATFORM_MAX_PATH];
 char g_sWaveIconName[MAXPLAYERS + 1][32];
+int g_iWaveIconFlags[MAXPLAYERS + 1];
 int g_iBotEntranceSpot[MAXPLAYERS + 1];
 int g_iObjectiveResource = -1;
 
@@ -477,6 +478,9 @@ void AddRobotToWaveBar(int client)
     if (g_iObjectiveResource == -1 || !IsValidEntity(g_iObjectiveResource))
         return;
     
+    if (strlen(g_sWaveIconName[client]) > 0)
+        RemoveRobotFromWaveBar(client);
+    
     char clientName[64];
     GetClientName(client, clientName, sizeof(clientName));
     
@@ -484,10 +488,10 @@ void AddRobotToWaveBar(int client)
     bool isBoss = (StrContains(clientName, "Boss") != -1);
     
     int iFlags = MVM_CLASS_FLAG_NORMAL;
-    if (isBoss)
-        iFlags |= MVM_CLASS_FLAG_MINIBOSS | MVM_CLASS_FLAG_ALWAYSCRIT;
-    else if (isGiant)
+    if (isBoss || isGiant)
         iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+    
+    g_iWaveIconFlags[client] = iFlags;
     
     OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, "blu2_lite", iFlags, 1, false);
     
@@ -502,21 +506,10 @@ void RemoveRobotFromWaveBar(int client)
     if (strlen(g_sWaveIconName[client]) == 0)
         return;
     
-    char clientName[64];
-    GetClientName(client, clientName, sizeof(clientName));
-    
-    bool isGiant = (StrContains(clientName, "Giant") != -1);
-    bool isBoss = (StrContains(clientName, "Boss") != -1);
-    
-    int iFlags = MVM_CLASS_FLAG_NORMAL;
-    if (isBoss)
-        iFlags |= MVM_CLASS_FLAG_MINIBOSS | MVM_CLASS_FLAG_ALWAYSCRIT;
-    else if (isGiant)
-        iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-    
-    OSLib_DecrementWaveIconSpawnCount(g_iObjectiveResource, g_sWaveIconName[client], iFlags, 1, false);
+    OSLib_DecrementWaveIconSpawnCount(g_iObjectiveResource, g_sWaveIconName[client], g_iWaveIconFlags[client], 1, false);
     
     g_sWaveIconName[client] = "";
+    g_iWaveIconFlags[client] = 0;
 }
 
 public Action Timer_FixWaveBar(Handle timer)
