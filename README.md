@@ -34,7 +34,7 @@ If you want all players to download the files automatically when connecting:
 
 ## ✅ No Modifications Required
 
-This plugin works out of the box with **standard MvM missions** — no heavy game mode modifications like **SiegMvM** needed. You get the full Buy Robot experience without altering core MvM mechanics.
+This plugin works out of the box with **standard MvM missions** — no heavy game mode modifications like **Sigsegv-MvM** needed. You get the full Buy Robot experience without altering core MvM mechanics.
 
 ---
 
