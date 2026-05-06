@@ -528,9 +528,24 @@ public Action Timer_FixWaveBar(Handle timer)
             blueBots++;
     }
     
+    int currentWave = GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveCount");
+    
+    static int originalWaveCount = -1;
+    static int lastWaveNumber = -1;
+    
+    if (currentWave != lastWaveNumber)
+    {
+        originalWaveCount = -1;
+        lastWaveNumber = currentWave;
+    }
+    
     int currentWaveCount = GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveEnemyCount");
-    int originalWaveCount = currentWaveCount - blueBots;
-    if (originalWaveCount < 0) originalWaveCount = 0;
+    
+    if (originalWaveCount == -1)
+    {
+        originalWaveCount = currentWaveCount - blueBots;
+        if (originalWaveCount < 0) originalWaveCount = 0;
+    }
     
     SetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveEnemyCount", originalWaveCount + blueBots);
     

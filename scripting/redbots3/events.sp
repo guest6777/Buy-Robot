@@ -20,20 +20,17 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
     if (!IsClientInGame(client) || !IsFakeClient(client))
         return;
     
-    char clientName[MAX_NAME_LENGTH];
-    GetClientName(client, clientName, sizeof(clientName));
+    if (TF2_GetClientTeam(client) == TFTeam_Blue && !g_bBuyIsPurchasedRobot[client])
+        return;
     
-    bool isPurchased = (StrContains(clientName, "BOT_BUY_") != -1 || StrContains(clientName, "BOT_BONUS") != -1);
-    bool isDefender = (StrContains(clientName, TFBOT_IDENTITY_NAME) != -1);
-    
-    if ((isDefender || isPurchased) && !g_bBuyIsPurchasedRobot[client])
+    if (!g_bBuyIsPurchasedRobot[client])
     {
         CreateTimer(0.2, Timer_PlayerSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
     }
     
     if (g_bIsDefenderBot[client] && !g_bBuyIsPurchasedRobot[client])
     {
-	CreateTimer(0.3, Timer_ReapplyHat, client, TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(0.3, Timer_ReapplyHat, client, TIMER_FLAG_NO_MAPCHANGE);
 
         g_bIsBeingRevived[client] = false;
         g_iBuyUpgradesNumber[client] = CanBuyUpgradesNow(client) ? GetRandomInt(1, 100) : 0;
@@ -200,6 +197,9 @@ static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBr
 static Action Timer_PlayerSpawn(Handle timer, int data)
 {
     if (!IsClientInGame(data) || !IsTFBotPlayer(data))
+        return Plugin_Stop;
+    
+    if (TF2_GetClientTeam(data) == TFTeam_Blue && !g_bBuyIsPurchasedRobot[data])
         return Plugin_Stop;
     
     bool isPurchased = g_bBuyIsPurchasedRobot[data];
