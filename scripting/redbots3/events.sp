@@ -147,17 +147,16 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 	TFTeam oldTeam = view_as<TFTeam>(event.GetInt("oldteam"));
 	bool isDisconnect = event.GetBool("disconnect");
 	
+	if (IsFakeClient(client) && !isDisconnect && team == TFTeam_Spectator)
+		return;
+	
 	if (!IsFakeClient(client))
 	{
-		/* When changing teams, update bot team composition for
-		- red player disconnected
-		- player joined red
-		- player left red */
 		if ((isDisconnect && oldTeam == TFTeam_Red) || (!isDisconnect && (team == TFTeam_Red || oldTeam == TFTeam_Red)))
 		{
 			CreateTimer(0.1, Timer_UpdateChosenBotTeamComposition, _, TIMER_FLAG_NO_MAPCHANGE);
 			
-			if (oldTeam == TFTeam_Red)
+			if (oldTeam == TFTeam_Red && GameRules_GetRoundState() == RoundState_BetweenRounds)
 			{
 				HandleTeamPlayerCountChanged(TFTeam_Red, client);
 			}
@@ -166,7 +165,6 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 #if defined CHANGETEAM_RESTRICTIONS
 		if (!isDisconnect && team == TFTeam_Red && oldTeam == TFTeam_Blue && !CheckCommandAccess(client, NULL_STRING, ADMFLAG_GENERIC, true))
 		{
-			//Switching from BLUE to RED will temporarily ban the player from starting the bots
 			if (g_flEnableBotsCooldown[client] <= GetGameTime())
 				g_flEnableBotsCooldown[client] = GetGameTime() + 30.0;
 			else

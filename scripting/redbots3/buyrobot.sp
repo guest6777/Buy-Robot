@@ -494,7 +494,6 @@ void BuyRobot_Init()
     g_hBuyQueue = new ArrayList(ByteCountToCells(256));
     g_hSpawnPoints = new ArrayList(4);
     g_hSpawnAngles = new ArrayList(3);
-    BuyRobot_PrecacheWaveIcon();
     BuyRobot_PrecacheSpawnModel();
     BuyRobot_ForceDownloadMaterials();
 
@@ -4081,11 +4080,6 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
         BuyRobot_ApplyBossAttributes(client);
     
     TF2_RespawnPlayer(client);
-
-    if (team == TFTeam_Blue)
-    {
-        CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-    }
     
     bool useUpgrades = g_cvBuyUseUpgrades.BoolValue;
     if (!useUpgrades || isGiant || isBoss || (team == TFTeam_Blue))
@@ -4101,19 +4095,6 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
         CreateTimer(0.5, Timer_InfiniteSentryAmmo, GetClientUserId(client), TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
     }
     
-    return Plugin_Stop;
-}
-
-public Action Timer_AddToWaveBar(Handle timer, int userid)
-{
-    int client = GetClientOfUserId(userid);
-    if (client && IsClientInGame(client) && IsPlayerAlive(client) && g_bBuyIsPurchasedRobot[client])
-    {
-        if (TF2_GetClientTeam(client) == TFTeam_Blue)
-        {
-            AddRobotToWaveBar(client);
-        }
-    }
     return Plugin_Stop;
 }
 
@@ -5376,11 +5357,6 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
                 AcceptEntityInput(ent, "Kill");
             }
         }
-
-        if (TF2_GetClientTeam(victim) == TFTeam_Blue)
-        {
-                RemoveRobotFromWaveBar(victim);
-        }
         
         char victimName[64];
         GetClientName(victim, victimName, sizeof(victimName));
@@ -5448,11 +5424,6 @@ public Action BuyRobot_EventDeath(Event event, const char[] name, bool dontBroad
 public void BuyRobot_CleanupBot(int client)
 {
     if (!IsClientInGame(client)) return;
-
-if (g_bBuyIsPurchasedRobot[client] && TF2_GetClientTeam(client) == TFTeam_Blue && IsPlayerAlive(client))
-{
-    RemoveRobotFromWaveBar(client);
-}
     
     g_bBuyIsPurchasedRobot[client] = false;
     g_bBuyIsAIRobot[client] = false;
@@ -6686,14 +6657,6 @@ void BuyRobot_PrecacheSpawnModel()
     AddFileToDownloadsTable("models/props_mvm/robot_spawnpoint.vvd");
 }
 
-void BuyRobot_PrecacheWaveIcon()
-{
-    AddFileToDownloadsTable("materials/hud/leaderboard_class_blu2_lite.vmt");
-    AddFileToDownloadsTable("materials/hud/leaderboard_class_blu2_lite.vtf");
-    PrecacheGeneric("materials/hud/leaderboard_class_blu2_lite.vmt", true);
-    PrecacheGeneric("materials/hud/leaderboard_class_blu2_lite.vtf", true);
-}
-
 void BuyRobot_ForceDownloadMaterials()
 {
     static const char files[][] = {
@@ -6812,11 +6775,6 @@ public Action Timer_RespawnAtSpawnPoint(Handle timer, int userid)
     if (!client || !IsClientInGame(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
     TF2_RespawnPlayer(client);
-
-    if (TF2_GetClientTeam(client) == TFTeam_Blue)
-    {
-        CreateTimer(0.1, Timer_AddToWaveBar, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-    }
     
     int owner = g_iBuyRobotOwner[client];
     if (g_cvBuyNotifyLives.BoolValue && IsValidClientIndex(owner))
@@ -8435,7 +8393,6 @@ void BuyRobot_OnMapStart()
     
     LoadSpawnPoints();
     BuyRobot_PrecacheSounds();
-    BuyRobot_PrecacheWaveIcon();
     BuyRobot_PrecacheSpawnModel();
     BuyRobot_ForceDownloadMaterials();
     

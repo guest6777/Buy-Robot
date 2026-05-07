@@ -117,8 +117,6 @@ bool g_bSpotsGlobalVisible = false;
 Handle g_hGlobalSpotTimer = INVALID_HANDLE;
 ArrayList g_hTeleporterEntranceSpots = null;
 char g_sTeleporterConfigFile[PLATFORM_MAX_PATH];
-char g_sWaveIconName[MAXPLAYERS + 1][32];
-int g_iWaveIconFlags[MAXPLAYERS + 1];
 int g_iBotEntranceSpot[MAXPLAYERS + 1];
 int g_iObjectiveResource = -1;
 
@@ -380,8 +378,6 @@ public void OnPluginStart()
 #if defined IDLEBOT_AIMING
 	InitTFBotAim();
 #endif
-	
-	CreateTimer(0.1, Timer_FixWaveBar, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	FindGameConsoleVariables();
 	AutoExecConfig(true, "defenderbots");
@@ -460,9 +456,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if (StrEqual(classname, "info_populator"))
 		g_iPopulationManager = entity;
 	
-	if (StrEqual(classname, "tf_objective_resource"))
-		g_iObjectiveResource = entity;
-	
 	DHooks_OnEntityCreated(entity, classname);
 
     if (StrEqual(classname, "tf_ammo_pack") || 
@@ -471,85 +464,6 @@ public void OnEntityCreated(int entity, const char[] classname)
     {
         CreateTimer(0.01, Timer_RemoveDropIfFromPurchasedRobot, EntIndexToEntRef(entity));
     }
-}
-
-void AddRobotToWaveBar(int client)
-{
-    if (g_iObjectiveResource == -1 || !IsValidEntity(g_iObjectiveResource))
-        return;
-    
-    if (strlen(g_sWaveIconName[client]) > 0)
-        RemoveRobotFromWaveBar(client);
-    
-    char clientName[64];
-    GetClientName(client, clientName, sizeof(clientName));
-    
-    bool isGiant = (StrContains(clientName, "Giant") != -1);
-    bool isBoss = (StrContains(clientName, "Boss") != -1);
-    
-    int iFlags = MVM_CLASS_FLAG_NORMAL;
-    if (isBoss || isGiant)
-        iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-    
-    g_iWaveIconFlags[client] = iFlags;
-    
-    OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, "blu2_lite", iFlags, 1, false);
-    
-    g_sWaveIconName[client] = "blu2_lite";
-}
-
-void RemoveRobotFromWaveBar(int client)
-{
-    if (g_iObjectiveResource == -1 || !IsValidEntity(g_iObjectiveResource))
-        return;
-    
-    if (strlen(g_sWaveIconName[client]) == 0)
-        return;
-    
-    OSLib_DecrementWaveIconSpawnCount(g_iObjectiveResource, g_sWaveIconName[client], g_iWaveIconFlags[client], 1, false);
-    
-    g_sWaveIconName[client] = "";
-    g_iWaveIconFlags[client] = 0;
-}
-
-public Action Timer_FixWaveBar(Handle timer)
-{
-    if (GameRules_GetRoundState() != RoundState_RoundRunning)
-        return Plugin_Continue;
-    
-    if (g_iObjectiveResource == -1 || !IsValidEntity(g_iObjectiveResource))
-        return Plugin_Continue;
-    
-    int blueBots = 0;
-    
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i] && IsPlayerAlive(i) && TF2_GetClientTeam(i) == TFTeam_Blue)
-            blueBots++;
-    }
-    
-    int currentWave = GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveCount");
-    
-    static int originalWaveCount = -1;
-    static int lastWaveNumber = -1;
-    
-    if (currentWave != lastWaveNumber)
-    {
-        originalWaveCount = -1;
-        lastWaveNumber = currentWave;
-    }
-    
-    int currentWaveCount = GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveEnemyCount");
-    
-    if (originalWaveCount == -1)
-    {
-        originalWaveCount = currentWaveCount - blueBots;
-        if (originalWaveCount < 0) originalWaveCount = 0;
-    }
-    
-    SetEntProp(g_iObjectiveResource, Prop_Send, "m_nMannVsMachineWaveEnemyCount", originalWaveCount + blueBots);
-    
-    return Plugin_Continue;
 }
 
 public Action Timer_RemoveDropIfFromPurchasedRobot(Handle timer, any entref)
@@ -2155,9 +2069,19 @@ void AddBotsBasedOnLineupMode(int count, bool bAdjustTime = true)
 This is to prevent abuse of the system by leaving RED players with unfavorable teams */
 void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
 {
-    // Ignorar se quem está mudando for um robô comprado
-    if (iWhoChanging > 0 && iWhoChanging <= MaxClients && g_bBuyIsPurchasedRobot[iWhoChanging])
+    if (iWhoChanging > 0 && iWhoChanging <= MaxClients && IsClientInGame(iWhoChanging))
+    {
+        if (IsFakeClient(iWhoChanging))
+            return;
+            
+        if (g_bBuyIsPurchasedRobot[iWhoChanging])
+            return;
+    }
+    
+    if (iWhoChanging == -1 && GameRules_GetRoundState() != RoundState_BetweenRounds)
+    {
         return;
+    }
     
     if (GameRules_GetRoundState() != RoundState_BetweenRounds)
         return;
@@ -2166,15 +2090,14 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
     {
         if (iWhoChanging > 0 && iWhoChanging == GetClientOfUserId(g_iUIDBotSummoner) && IsVoteInProgress())
         {
-            //He started the bot vote then changed teams, cancel it
             CancelVote();
         }
     }
+    
     switch (redbots_manager_bot_lineup_mode.IntValue)
     {
         case BOT_LINEUP_MODE_CHOOSE, BOT_LINEUP_MODE_PREFERENCE_CHOOSE:
         {
-            //Allow the classes to be picked again, but don't clear current list
             g_bBotClassesLocked = false;
             PrintToChatTeam(team, "%s You can repick your bot team lineup.", PLUGIN_PREFIX);
         }
@@ -2185,7 +2108,6 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
     
     if (iWhoChanging > 0 && GetClientOfUserId(g_iUIDBotSummoner) == iWhoChanging)
     {
-        //The summoner changed teams, allow RED team to repick their bots
         g_bAllowBotTeamRedo = true;
         PrintToChatTeam(team, "%s Use command !redobots to repick your bot team lineup.", PLUGIN_PREFIX);
     }
@@ -2196,14 +2118,12 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
     
     for (int i = 1; i <= MaxClients; i++)
     {
-        //Whoever is changing teams won't count to the team count
         if (i == iWhoChanging)
             continue;
         
         if (!IsClientInGame(i))
             continue;
         
-        // Ignorar robôs comprados na contagem
         if (g_bBuyIsPurchasedRobot[i])
             continue;
         
@@ -2216,7 +2136,6 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
             {
                 if (g_bIsDefenderBot[iWhoToUnready])
                 {
-                    //Always prefer to unready human players first
                     if (!g_bIsDefenderBot[i])
                         iWhoToUnready = i;
                 }
@@ -2232,15 +2151,17 @@ void HandleTeamPlayerCountChanged(TFTeam team, int iWhoChanging = -1)
         iMemberCount++;
     }
     
-    //Are all remaining members of the team ready?
-    if (iReadyCount == iMemberCount)
+    if (iReadyCount == iMemberCount && iMemberCount > 0 && iWhoToUnready != -1)
     {
-        //Unready one member to prevent starting the game and allow another bot to enter
+        if (!IsFakeClient(iWhoToUnready) || g_bBuyIsPurchasedRobot[iWhoToUnready])
+        {
+            return;
+        }
+        
         SetPlayerReady(iWhoToUnready, false);
         
         if (g_bIsDefenderBot[iWhoToUnready] && !g_bBuyIsPurchasedRobot[iWhoToUnready])
         {
-            //Ready up the bot again after some time
             CreateTimer(0.2, Timer_ReadyPlayer, iWhoToUnready, TIMER_FLAG_NO_MAPCHANGE);
         }
     }
