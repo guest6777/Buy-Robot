@@ -230,9 +230,11 @@ static MRESReturn DHookCallback_MyTouch_Post(int pThis, DHookReturn hReturn, DHo
 
 static MRESReturn DHookCallback_IsBot_Pre(int pThis, DHookReturn hReturn)
 {
-    // MODIFICADO: Incluir robôs comprados
 	if (IsClientInGame(pThis) && (g_bIsDefenderBot[pThis] || g_bBuyIsPurchasedRobot[pThis]))
 	{
+		if (TF2_GetClientTeam(pThis) != TFTeam_Red && !g_bBuyIsPurchasedRobot[pThis])
+			return MRES_Ignored;
+		
 		if (m_bTouchCredits || m_bPlayerKilled)
 		{
 			hReturn.Value = false;

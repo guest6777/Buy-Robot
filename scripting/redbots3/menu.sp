@@ -74,6 +74,9 @@ bool StartBotVote(int voteCaller)
 
 void ShowDefenderBotTeamSetupMenu(int client, int itemPosition = 0, bool bInitialize = false, int numBotsToAdd = 0)
 {
+	if (g_bBuyIsPurchasedRobot[client])
+		return;
+	
 	if (bInitialize)
 	{
 		g_adtChosenBotClasses.Clear();
