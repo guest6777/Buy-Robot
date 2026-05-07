@@ -962,7 +962,7 @@ public Action Command_Votebots(int client, int args)
             }
             
             ReplyToCommand(client, "%s Choose your bot team lineup first! Use command !choosebotteam or !cbt", PLUGIN_PREFIX);
-            return Plugin_BadLoad;
+            return Plugin_Handled;
         }
     }
     
@@ -1325,7 +1325,7 @@ public Action Command_RedoBotTeamLineup(int client, int args)
     }
     
     //Solo players are always allowed to repick their bot lineup
-    g_bAllowBotTeamRedo = GetTeamHumanClientCount(TFTeam_Red) == 1;
+    g_bAllowBotTeamRedo = GetTeamHumanClientCount(view_as<int>(TFTeam_Red)) == 1;
     
     PrintToChatAll("%s %N has decided to repick the bot team lineup.", PLUGIN_PREFIX, client);
     LogAction(client, -1, "%L triggered defender bot redo", client);

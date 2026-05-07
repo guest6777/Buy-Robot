@@ -1,5 +1,4 @@
 static int m_iWaveFailCounterTick;
-static float flLastAddTime = 0.0;
 
 void InitGameEventHooks()
 {
@@ -63,19 +62,16 @@ static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadca
 	
 	if (redbots_manager_mode.IntValue == MANAGER_MODE_READY_BOTS)
 	{
-		//Global cooldown before players can ready up again
 		g_flNextReadyTime = GetGameTime() + redbots_manager_ready_cooldown.FloatValue;
 		
 		if (m_iWaveFailCounterTick > 3)
 		{
-			//Mission restarted or changed, don't have a cooldown here
 			g_flNextReadyTime = 0.0;
 		}
 	}
 	
 	if (redbots_manager_bot_lineup_mode.IntValue == BOT_LINEUP_MODE_CHOOSE)
 	{
-		//In case the mission changed, let players pick the bot team
 		FreeChosenBotTeam();
 	}
 	
@@ -100,7 +96,6 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	{
 		if (IsClientInGame(i) && g_bIsDefenderBot[i] && !g_bBuyIsPurchasedRobot[i])
 		{
-			//Wave complete, rethink what we should do
 			ResetIntentionInterface(i);
 			
 #if defined MOD_REQUEST_CREDITS
@@ -115,7 +110,6 @@ static void Event_RevivePlayerNotify(Event event, const char[] name, bool dontBr
 {
 	int client = event.GetInt("entindex");
 	
-	//This event indicates someone attempted a revive on the client
 	g_bIsBeingRevived[client] = true;
 }
 
@@ -128,7 +122,6 @@ static void Event_MvmWaveBegin(Event event, const char[] name, bool dontBroadcas
 			if (!ShouldResetBehavior(i))
 				continue;
 			
-			//Rethink what we're supposed to do
 			ResetIntentionInterface(i);
 		}
 	}
@@ -136,7 +129,6 @@ static void Event_MvmWaveBegin(Event event, const char[] name, bool dontBroadcas
 	if (redbots_manager_mode.IntValue == MANAGER_MODE_AUTO_BOTS)
 		ManageDefenderBots(true);
 	
-	//At this point the bots should already be here, so clear up the lineup that was used
 	FreeChosenBotTeam();
 }
 
@@ -176,7 +168,6 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 
 static Action Event_MvmMissionUpdate(Event event, const char[] name, bool dontBroadcast)
 {
-	//TFBot spies fire this event on death, so block it when a defender bot dies
 	if (g_bSpyKilled)
 		return Plugin_Handled;
 	
@@ -185,7 +176,6 @@ static Action Event_MvmMissionUpdate(Event event, const char[] name, bool dontBr
 
 static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
-	//Was the map reset?
 	if (event.GetBool("full_reset"))
 	{
 		SetupSniperSpotHints();
@@ -235,7 +225,7 @@ static Action Timer_PlayerSpawn(Handle timer, int data)
         if (isGiant || isBoss)
         {
             if (TF2_GetPlayerClass(data) == TFClass_Sniper)
-                SetMission(data, CTFBot_MISSION_SNIPER);
+                SetMission(data, view_as<int>(CTFBot_MISSION_SNIPER));
         }
         else
         {
@@ -246,7 +236,7 @@ static Action Timer_PlayerSpawn(Handle timer, int data)
             else
             {
                 if (TF2_GetPlayerClass(data) == TFClass_Sniper)
-                    SetMission(data, CTFBot_MISSION_SNIPER);
+                    SetMission(data, view_as<int>(CTFBot_MISSION_SNIPER));
             }
         }
         
@@ -266,7 +256,7 @@ static Action Timer_PlayerSpawn(Handle timer, int data)
             
             if (!hasBow)
             {
-                SetMission(data, CTFBot_MISSION_SNIPER);
+                SetMission(data, view_as<int>(CTFBot_MISSION_SNIPER));
             }
         }
         
@@ -307,8 +297,6 @@ static Action Timer_WaveFailure(Handle timer)
 	if (GameRules_GetRoundState() != RoundState_BetweenRounds)
 		return Plugin_Stop;
 	
-	//Don't refund if we wanna keep them
-	//TODO: how we gonna do this for custom loadouts?
 	if (redbots_manager_keep_bot_upgrades.BoolValue)
 		return Plugin_Stop;
 	
@@ -316,10 +304,6 @@ static Action Timer_WaveFailure(Handle timer)
 	{
 		if (IsClientInGame(i) && g_bIsDefenderBot[i] && !g_bBuyIsPurchasedRobot[i])
 		{
-			/* NOTE: this isn't actually necessary, but the reason why I'm doing this is so we
-			or the population manager forgets about the bots' upgrades so they can 
-			just go and buy upgrades again in their upgrade behavior, though this is really 
-			just for the bots that failed a wave but were not kicked */
 			if (g_bHasUpgraded[i])
 			{
 				g_bHasBoughtUpgrades[i] = false;
@@ -334,7 +318,6 @@ static Action Timer_WaveFailure(Handle timer)
 
 static Action Timer_UpdateChosenBotTeamComposition(Handle timer)
 {
-	//These modes use their own way of composing a bot team
 	if (redbots_manager_bot_lineup_mode.IntValue == BOT_LINEUP_MODE_CHOOSE)
 		return Plugin_Stop;
 	
@@ -345,15 +328,12 @@ static Action Timer_UpdateChosenBotTeamComposition(Handle timer)
 
 static bool ShouldResetBehavior(int client)
 {
-	//Looking for sniping spots, don't disturb
 	if (ActionsManager.LookupEntityActionByName(client, "SniperLurk") != INVALID_ACTION)
 		return false;
 	
-	//I'm healing people
 	if (ActionsManager.LookupEntityActionByName(client, "Heal") != INVALID_ACTION)
 		return false;
 	
-	//I am building shit
 	if (ActionsManager.LookupEntityActionByName(client, "DefenderEngineerIdle") != INVALID_ACTION)
 		return false;
 	

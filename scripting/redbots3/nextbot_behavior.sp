@@ -1,4 +1,3 @@
-//CTFBotMedicHeal::m_patient
 #define ACTION_HEAL_PATIENT_OFFSET	0x4850
 
 #define FLAMETHROWER_REACH_RANGE	350.0
@@ -457,7 +456,7 @@ public Action CTFBotTacticalMonitor_Update(BehaviorAction action, int actor, flo
 	
 	if (!ShouldUseTeleporter(actor))
 	{
-		CountdownTimer pFindTeleporterTimer = CountdownTimer(view_as<Address>(action) + 0x70);
+		CountdownTimer pFindTeleporterTimer = CountdownTimer(view_as<Address>(view_as<int>(action) + 0x70));
 		
 		if (pFindTeleporterTimer.Address)
 		{
@@ -1080,23 +1079,6 @@ bool IsPathToVectorPossible(int bot_entidx, const float vec[3], float &length = 
 	PathFollower temp_path = PathFollower(_, Path_FilterIgnoreActors, Path_FilterOnlyActors);
 	
 	bool success = temp_path.ComputeToPos(CBaseNPC_GetNextBotOfEntity(bot_entidx), vec);
-	
-	length = temp_path.GetLength();
-	
-	temp_path.Destroy();
-	
-	return success;
-}
-
-bool IsPathToEntityPossible(int bot_entidx, int goal_entidx, float &length = -1.0)
-{
-	CBaseCombatCharacter(bot_entidx).UpdateLastKnownArea();
-	
-	CBaseCombatCharacter(goal_entidx).UpdateLastKnownArea();
-	
-	PathFollower temp_path = PathFollower(_, Path_FilterIgnoreActors, Path_FilterOnlyActors);
-	
-	bool success = temp_path.ComputeToTarget(CBaseNPC_GetNextBotOfEntity(bot_entidx), goal_entidx);
 	
 	length = temp_path.GetLength();
 	

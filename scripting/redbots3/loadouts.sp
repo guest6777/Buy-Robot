@@ -311,7 +311,7 @@ void PrepareCustomLoadout(int client)
 {
     if (g_bBuyIsPurchasedRobot[client] && !g_bHasCustomLoadout[client])
     {
-        int playerClass = TF2_GetPlayerClass(client);
+        TFClassType playerClass = TF2_GetPlayerClass(client);
         if (playerClass == TFClass_Scout)
         {
             m_iWeaponPrimary[client] = BUYROBOT_SCOUT_PRIMARY[GetRandomInt(0, sizeof(BUYROBOT_SCOUT_PRIMARY) - 1)];
@@ -437,7 +437,7 @@ void PrepareCustomLoadout(int client)
     {
         if (StrEqual(itemClassname, "tf_weapon_sniperrifle") || StrEqual(itemClassname, "tf_weapon_sniperrifle_decap") || StrEqual(itemClassname, "tf_weapon_sniperrifle_classic"))
         {
-            SetMission(client, CTFBot_MISSION_SNIPER);
+            SetMission(client, view_as<int>(CTFBot_MISSION_SNIPER));
         }
     }
     

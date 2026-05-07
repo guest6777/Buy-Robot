@@ -46,7 +46,6 @@ public Action CTFBotMvMEngineerBuildTeleporterEntrance_Update(BehaviorAction act
     if (startIndex == -1)
         startIndex = GetRandomInt(0, g_hTeleporterEntranceSpots.Length - 1);
     
-    int attempts = 0;
     int maxAttempts = g_hTeleporterEntranceSpots.Length;
     int selectedIndex = -1;
     

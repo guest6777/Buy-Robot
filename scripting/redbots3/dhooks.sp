@@ -10,26 +10,14 @@ static bool m_bTouchCredits;
 static bool m_bPlayerKilled;
 static bool m_bEngineerKilled;
 
-// ============ NOVAS VARIÁVEIS PARA ENGINEER FIX ============
 bool g_bWasEngineer[MAXPLAYERS + 1];
 float g_flEngineerDeathTime[MAXPLAYERS + 1];
-// ============================================================
-
-bool WasEngineerOnDeath(int client)
-{
-    if (client <= 0 || client > MaxClients)
-        return false;
-    
-    return g_bWasEngineer[client];
-}
 
 bool InitDHooks(GameData hGamedata)
 {
 	int iFailCount = 0;
 	
 #if defined METHOD_MVM_UPGRADES
-	//We could not find the address to g_MannVsMachineUpgrades, use this detour to fetch it instead
-	//NOTE: this will not support late-load!
 	if (!g_pMannVsMachineUpgrades)
 		if (!RegisterDetour(hGamedata, "CMannVsMachineUpgradeManager::LoadUpgradesFile", _, DHookCallback_LoadUpgradesFile_Post))
 			iFailCount++;
@@ -100,10 +88,6 @@ static MRESReturn DHookCallback_LoadUpgradesFile_Post(Address pThis)
 	if (!g_pMannVsMachineUpgrades)
 	{
 		g_pMannVsMachineUpgrades = pThis;
-		
-#if defined TESTING_ONLY
-		LogMessage("DHookCallback_LoadUpgradesFile_Post: Found \"g_MannVsMachineUpgrades\" @ 0x%X", g_pMannVsMachineUpgrades);
-#endif
 	}
 	
 	return MRES_Ignored;
@@ -203,14 +187,10 @@ static MRESReturn DHookCallback_ManageBuilderWeapons_Pre(int pThis)
     return MRES_Ignored;
 }
 
-// VIRTUAL HOOKS
-// Only hooked on certain entities or data, which in this case should mostly be related to our bots
-
 static MRESReturn DHookCallback_MyTouch_Pre(int pThis, DHookReturn hReturn, DHookParam hParams)
 {
 	int player = hParams.Get(1);
 	
-    // MODIFICADO: Incluir robôs comprados
 	if (g_bIsDefenderBot[player] || g_bBuyIsPurchasedRobot[player])
 		m_bTouchCredits = true;
 	
@@ -221,7 +201,6 @@ static MRESReturn DHookCallback_MyTouch_Post(int pThis, DHookReturn hReturn, DHo
 {
 	int player = hParams.Get(1);
 	
-    // MODIFICADO: Incluir robôs comprados
 	if (g_bIsDefenderBot[player] || g_bBuyIsPurchasedRobot[player])
 		m_bTouchCredits = false;
 	
@@ -245,12 +224,8 @@ static MRESReturn DHookCallback_IsBot_Pre(int pThis, DHookReturn hReturn)
 	return MRES_Ignored;
 }
 
-// ==================================================
-// HOOK DE MORTE - PRE (MODIFICADO)
-// ==================================================
 static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 {
-    // NUNCA alterar classe de Sentry Busters
     if (IsSentryBusterRobot(pThis))
         return MRES_Ignored;
     
@@ -258,21 +233,15 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
     {
         m_bPlayerKilled = true;
         
-        // SALVAR se era Engineer
         g_bWasEngineer[pThis] = (TF2_GetPlayerClass(pThis) == TFClass_Engineer);
         
         if (TF2_GetPlayerClass(pThis) == TFClass_Engineer)
         {
-            /* CTFBot::Event_Killed pretty much disbands the buildings from the engineer bot when it dies in mvm mode
-            Change to another class besides engineer before this death occurs
-            NOTE: this will mess with achievement data for class-specific requirements, but this shouldn't matter in mvm */
             TF2_SetPlayerClass(pThis, TFClass_Soldier, _, false);
             m_bEngineerKilled = true;
             
-            // Registrar quando morreu
             g_flEngineerDeathTime[pThis] = GetGameTime();
             
-            // CRIAR TIMER DE SEGURANÇA (20 segundos)
             DataPack pack = new DataPack();
             pack.WriteCell(GetClientUserId(pThis));
             pack.WriteCell(g_bWasEngineer[pThis]);
@@ -287,9 +256,6 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
     return MRES_Ignored;
 }
 
-// ==================================================
-// TIMER DE SEGURANÇA - FORÇA VOLTA DO ENGINEER
-// ==================================================
 public Action Timer_ForceEngineerRestore(Handle timer, DataPack pack)
 {
     pack.Reset();
@@ -302,29 +268,20 @@ public Action Timer_ForceEngineerRestore(Handle timer, DataPack pack)
     if (!client || !IsClientInGame(client))
         return Plugin_Stop;
     
-    // Se ainda está morto ou reviveu mas continua como Soldier
     if (wasEngineer && TF2_GetPlayerClass(client) != TFClass_Engineer)
     {
-        // Voltar para Engineer
         TF2_SetPlayerClass(client, TFClass_Engineer, _, false);
-        
-        // Log para debug
-        LogMessage("[Engineer Fix] Forçando volta para Engineer: %N (tempo esgotado)", client);
     }
     
     return Plugin_Stop;
 }
 
-// ==================================================
-// HOOK DE MORTE - POST (MODIFICADO)
-// ==================================================
 static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 {
 	if (g_bIsDefenderBot[pThis])
 	{
 		m_bPlayerKilled = false;
 		
-		// SE era Engineer e ainda não voltou (ou reviveu como Soldier)
 		if (g_bWasEngineer[pThis] && TF2_GetPlayerClass(pThis) != TFClass_Engineer)
 		{
 			TF2_SetPlayerClass(pThis, TFClass_Engineer, _, false);
@@ -336,7 +293,6 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 			m_bEngineerKilled = false;
 		}
 		
-		// Resetar flags
 		g_bWasEngineer[pThis] = false;
 		g_flEngineerDeathTime[pThis] = 0.0;
 		
@@ -349,10 +305,6 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 
 static MRESReturn DHookCallback_IsVisibleEntityNoticed_Pre(Address pThis, DHookReturn hReturn, DHookParam hParams)
 {
-	/* Doing this actually applies a few quirks here...
-	- disguised spy is never forgotten unless redisguised
-	- sapping anything around us will call out the spy
-	- changing disguises in front of us calls out the spy */
 	GameRules_SetProp("m_bPlayingMannVsMachine", false);
 	
 	return MRES_Ignored;
@@ -360,7 +312,6 @@ static MRESReturn DHookCallback_IsVisibleEntityNoticed_Pre(Address pThis, DHookR
 
 static MRESReturn DHookCallback_IsVisibleEntityNoticed_Post(Address pThis, DHookReturn hReturn, DHookParam hParams)
 {
-	//At the end of the day, we're still playing mvm
 	GameRules_SetProp("m_bPlayingMannVsMachine", true);
 	
 	return MRES_Ignored;
@@ -378,7 +329,6 @@ static MRESReturn DHookCallback_IsIgnored_Pre(Address pThis, DHookReturn hReturn
         {
             if (TF2_IsPlayerInCondition(subject, TFCond_ImmuneToPushback))
             {
-                //Always ignored, since we can't actually do anything about them
                 hReturn.Value = true;
                 return MRES_Supercede;
             }
@@ -391,20 +341,17 @@ static MRESReturn DHookCallback_IsIgnored_Pre(Address pThis, DHookReturn hReturn
                 {
                     case TF_WEAPON_ROCKETLAUNCHER, TF_WEAPON_GRENADELAUNCHER, TF_WEAPON_PIPEBOMBLAUNCHER, TF_WEAPON_DIRECTHIT, TF_WEAPON_PARTICLE_CANNON, TF_WEAPON_FLAME_BALL:
                     {
-                        //Don't ignore when using these, as they have knockback potential
                     }
                     case TF_WEAPON_FLAMETHROWER:
                     {
                         if (!CanWeaponAirblast(myWeapon))
                         {
-                            //Can't do anything about that
                             hReturn.Value = true;
                             return MRES_Supercede;
                         }
                     }
                     default:
                     {
-                        //We will ignore uber enemies for threat selection because we otherwise waste ammo
                         hReturn.Value = true;
                         return MRES_Supercede;
                     }
@@ -416,7 +363,6 @@ static MRESReturn DHookCallback_IsIgnored_Pre(Address pThis, DHookReturn hReturn
     {
         if (TF2_HasSapper(subject))
         {
-            //NOTE: these are ignored outside of mvm mode
             hReturn.Value = true;
             return MRES_Supercede;
         }

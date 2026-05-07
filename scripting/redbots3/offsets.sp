@@ -1,5 +1,3 @@
-//Used for offset calculations
-//https://github.com/Mikusch/MannVsMann/blob/571737b5ae0aadc1e743360e94311ca64e693bd9/addons/sourcemod/scripting/mannvsmann/offsets.sp
 static StringMap m_adtOffsets;
 
 void InitOffsets(GameData hGamedata)
@@ -16,20 +14,6 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CTFBuffItem", "m_bPlayingHorn");
 	SetOffset(hGamedata, "CTFRevolver", "m_flLastAccuracyCheck");
 	SetOffset(hGamedata, "CTFNavArea", "m_distanceToBombTarget");
-	
-#if defined TESTING_ONLY
-	//Dump offsets
-	LogMessage("InitOffsets: CTFPlayer->m_LastDamageType = %d", GetOffset("CTFPlayer", "m_LastDamageType"));
-	LogMessage("InitOffsets: CObjectSentrygun->m_bPlacementOK = %d", GetOffset("CObjectSentrygun", "m_bPlacementOK"));
-	LogMessage("InitOffsets: CObjectSentrygun->m_vecCurAngles = %d", GetOffset("CObjectSentrygun", "m_vecCurAngles"));
-	LogMessage("InitOffsets: CTFBot->m_isLookingAroundForEnemies = %d", GetOffset("CTFBot", "m_isLookingAroundForEnemies"));
-	LogMessage("InitOffsets: CTFBot->m_mission = %d", GetOffset("CTFBot", "m_mission"));
-	LogMessage("InitOffsets: CTFBot->m_opportunisticTimer = %d", GetOffset("CTFBot", "m_opportunisticTimer"));
-	LogMessage("InitOffsets: CPopulationManager->m_nStartingCurrency = %d", GetOffset("CPopulationManager", "m_nStartingCurrency"));
-	LogMessage("InitOffsets: CTFBuffItem->m_bPlayingHorn = %d", GetOffset("CTFBuffItem", "m_bPlayingHorn"));
-	LogMessage("InitOffsets: CTFRevolver->m_flLastAccuracyCheck = %d", GetOffset("CTFRevolver", "m_flLastAccuracyCheck"));
-	LogMessage("InitOffsets: CTFNavArea->m_distanceToBombTarget = %d", GetOffset("CTFNavArea", "m_distanceToBombTarget"));
-#endif
 }
 
 static void SetOffset(GameData hGamedata, const char[] cls, const char[] prop)
@@ -38,18 +22,15 @@ static void SetOffset(GameData hGamedata, const char[] cls, const char[] prop)
 	Format(key, sizeof(key), "%s::%s", cls, prop);
 	Format(base_key, sizeof(base_key), "%s_BaseOffset", cls);
 	
-	// Get the actual offset, calculated using a base offset if present
 	if (hGamedata.GetKeyValue(base_key, base_prop, sizeof(base_prop)))
 	{
 		int base_offset = FindSendPropInfo(cls, base_prop);
 		
-		//For CTFBot, lookup on CTFPlayer
 		if (StrEqual(cls, "CTFBot"))
 			base_offset = FindSendPropInfo("CTFPlayer", base_prop);
 		
 		if (base_offset == -1)
 		{
-			// If we found nothing, search on CBaseEntity instead
 			base_offset = FindSendPropInfo("CBaseEntity", base_prop);
 			
 			if (base_offset == -1)
@@ -74,7 +55,6 @@ static void SetOffset(GameData hGamedata, const char[] cls, const char[] prop)
 	}
 }
 
-//Explicitly interpreted as int
 static any GetOffset(const char[] cls, const char[] prop)
 {
 	char key[64];
@@ -91,13 +71,12 @@ static any GetOffset(const char[] cls, const char[] prop)
 
 int GetLastDamageType(int client)
 {
-	// return ReadInt(GetEntityAddress(client) + view_as<Address>(offset));
 	return GetEntData(client, GetOffset("CTFPlayer", "m_LastDamageType"));
 }
 
 bool IsPlacementOK(int iObject)
 {
-	return GetEntData(iObject, GetOffset("CObjectSentrygun", "m_bPlacementOK"), 1);
+	return view_as<bool>(GetEntData(iObject, GetOffset("CObjectSentrygun", "m_bPlacementOK"), 1));
 }
 
 void GetTurretAngles(int sentry, float buffer[3])
@@ -122,7 +101,6 @@ Address GetOpportunisticTimer(int client)
 
 int GetStartingCurrency(int populator)
 {
-	//NOTE: the actual starting currecny is determined by two variables, but the other one doesn't seem to matter
 	return GetEntData(populator, GetOffset("CPopulationManager", "m_nStartingCurrency"));
 }
 

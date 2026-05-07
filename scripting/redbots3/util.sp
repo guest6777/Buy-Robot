@@ -10,31 +10,24 @@
 #include <stocklib_officerspy/mathlib/vector>
 
 ArrayList g_hEngineerSpots = null;
-char g_sEngineerSpotConfigFile[PLATFORM_MAX_PATH];
 
 #define SENTRY_MAX_RANGE 1100.0
 
-//WeaponData > Range in file tf_weapon_medigun.txt
 #define WEAPON_MEDIGUN_RANGE	450.0
 
-//CTFWeaponBuilder::InternalGetEffectBarRechargeTime
 #define SAPPER_RECHARGE_TIME	15.0
 
-//Raw value found in CBaseObject::FindBuildPointOnPlayer
 #define SAPPER_PLAYER_BUILD_ON_RANGE	160.0
 
-//ConVar cl_sidespeed
 #define PLAYER_SIDESPEED	450.0
 
-//Raw value found in CTFBotMainAction::FireWeaponAtEnemy
 #define TFBOT_MELEE_ATTACK_RANGE	250.0
 
-//PlayerLocomotion::GetStepHeight
 #define TFBOT_STEP_HEIGHT	18.0
 
 #define SNIPER_REACTION_TIME	0.5
 
-enum //medigun_resist_types_t
+enum
 {
 	MEDIGUN_BULLET_RESIST = 0,
 	MEDIGUN_BLAST_RESIST,
@@ -42,7 +35,7 @@ enum //medigun_resist_types_t
 	MEDIGUN_NUM_RESISTS
 }
 
-enum //medigun_weapontypes_t
+enum
 {
 	MEDIGUN_STANDARD = 0,
 	MEDIGUN_UBER,
@@ -106,7 +99,6 @@ char g_sPlayerUseMyNameResponse[][] =
 	"You totally stole my name."
 };
 
-//NOTE: Make sure this matches with the eMissionDifficulty enum size
 char g_sMissionDifficultyFilePaths[][] =
 {
 	"",
@@ -143,11 +135,9 @@ char g_sRawPlayerClassNames[][] =
 
 static bool TraceFilter_TFBot(int entity, int contentsMask, StringMap data)
 {
-	//NextBotTraceFilterIgnoreActors
 	if (CBaseEntity(entity).IsCombatCharacter())
 		return false;
 	
-	//CTraceFilterIgnoreFriendlyCombatItems
 	int iPassEnt = -1;
 	data.GetValue("m_pPassEnt", iPassEnt);
 	
@@ -161,11 +151,8 @@ static bool TraceFilter_TFBot(int entity, int contentsMask, StringMap data)
 	{
 		if (BaseEntity_GetTeamNumber(entity) == iIgnoreTeam)
 			return false;
-		
-		//m_bCallerIsProjectile is false here
 	}
 	
-	//CTraceFilterSimple as BaseClass of CTraceFilterIgnoreFriendlyCombatItems
 	if (!StandardFilterRules(entity, contentsMask))
 		return false;
 	
@@ -181,11 +168,9 @@ static bool TraceFilter_TFBot(int entity, int contentsMask, StringMap data)
 	if (!TFGameRules_ShouldCollide(iCollisionGroup, BaseEntity_GetCollisionGroup(entity)))
 		return false;
 	
-	//CTraceFilterChain checks if both filters are true
 	return true;
 }
 
-//CNavArea::GetRandomPoint
 void CNavArea_GetRandomPoint(CNavArea area, float buffer[3])
 {
 	float eLo[3], eHi[3];
@@ -201,7 +186,6 @@ void CNavArea_GetRandomPoint(CNavArea area, float buffer[3])
 
 bool IsTFBotPlayer(int client)
 {
-	//TODO: change this, as it's not entirely reliable
 	return IsFakeClient(client);
 }
 
@@ -222,7 +206,6 @@ bool IsFinalWave()
 	return false;
 }
 
-//Set up an entity for item creation
 int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int quality)
 {
 	int item = CreateEntityByName(classname);
@@ -232,7 +215,6 @@ int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int qua
 		SetEntProp(item, Prop_Send, "m_iItemDefinitionIndex", itemDefIndex);
 		SetEntProp(item, Prop_Send, "m_bInitialized", 1);
 		
-		//SetEntProp doesn't work here...
 		static int iOffsetEntityQuality = -1;
 		
 		if (iOffsetEntityQuality == -1)
@@ -248,20 +230,17 @@ int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int qua
 		
 		if (StrEqual(classname, "tf_weapon_builder", false))
 		{
-			/* NOTE: After the 2023-10-09 update, not setting netprop m_iObjectType
-			will crash all client games (but the server will remain fine)
-			I suspect the client's game code change and not setting it cause it to read garbage */
-			SetEntProp(item, Prop_Send, "m_iObjectType", 3); //Set to OBJ_ATTACHMENT_SAPPER?
+			SetEntProp(item, Prop_Send, "m_iObjectType", 3);
 			
 			bool isSapper = IsItemDefIndexSapper(itemDefIndex);
 			
 			if (isSapper)
 				SetEntProp(item, Prop_Data, "m_iSubType", 3);
 			
-			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 0); //OBJ_DISPENSER
-			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 1); //OBJ_TELEPORTER
-			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 2); //OBJ_SENTRYGUN
-			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 1 : 0, _, 3); //OBJ_ATTACHMENT_SAPPER
+			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 0);
+			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 1);
+			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 2);
+			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 1 : 0, _, 3);
 		}
 		else if (StrEqual(classname, "tf_weapon_sapper", false))
 		{
@@ -281,7 +260,6 @@ int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int qua
 	return item;
 }
 
-//Call this when you're ready to spawn it
 void EconItemSpawnGiveTo(int item, int client)
 {
 	DispatchSpawn(item);
@@ -293,11 +271,7 @@ void EconItemSpawnGiveTo(int item, int client)
 	else
 	{
 		EquipPlayerWeapon(client, item);
-		// TF2Util_SetPlayerActiveWeapon(client, item);
 	}
-	
-	//NOTE: Bot players always have their items visible in PvE modes
-	// SetEntProp(item, Prop_Send, "m_bValidatedAttachedEntity", 1);
 }
 
 int GiveItemToPlayer(int client, char[] classname, int itemDefIndex, int level, int quality)
@@ -338,7 +312,6 @@ float GetTimeSinceWeaponFired(int client)
 	return GetGameTime() - flLastFireTime;
 }
 
-//CWeaponMedigun::GetMedigunType
 int GetMedigunType(int weapon)
 {
 	return TF2Attrib_HookValueInt(0, "set_weapon_mode", weapon);
@@ -381,7 +354,7 @@ void DetonateObjectOfType(int client, TFObjectType iType, TFObjectMode iMode = T
 	if (hEvent)
 	{
 		hEvent.SetInt("userid", GetClientUserId(client));
-		hEvent.SetInt("objecttype", iType);
+		hEvent.SetInt("objecttype", view_as<int>(iType));
 		hEvent.SetInt("index", iObj);
 		hEvent.Fire();
 	}
@@ -429,24 +402,20 @@ bool IsWeapon(int client, int iWeaponID)
 	return false;
 }
 
-// Substitua a função atual por esta versão mais robusta
 bool IsSentryBusterRobot(int client)
 {
     if (client <= 0 || client > MaxClients || !IsClientInGame(client))
         return false;
     
-    // Método 1: Verificar pela missão (mais confiável para bots)
-    if (IsTFBotPlayer(client) && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
+    if (IsTFBotPlayer(client) && GetTFBotMission(client) == view_as<int>(CTFBot_MISSION_DESTROY_SENTRIES))
         return true;
     
-    // Método 2: Verificar pelo modelo
     char model[PLATFORM_MAX_PATH]; 
     GetClientModel(client, model, PLATFORM_MAX_PATH);
     
     if (StrContains(model, "sentry_buster", false) != -1)
         return true;
     
-    // Método 3: Verificar pelo nome (fallback)
     char name[MAX_NAME_LENGTH];
     GetClientName(client, name, sizeof(name));
     if (StrContains(name, "Sentry Buster", false) != -1)
@@ -568,7 +537,6 @@ bool IsHealedByMedic(int client)
 	{
 		int iHealerIndex = TF2Util_GetPlayerHealer(client, i);
 		
-		//Not a player.
 		if (!BaseEntity_IsPlayer(iHealerIndex))
 			continue;
 		
@@ -677,12 +645,6 @@ int GetNearestReviveMarker(int client, const float max_distance)
 	return bestEntity;
 }
 
-/* void PowerupBottle_Reset(int bottle)
-{
-	SetEntProp(bottle, Prop_Send, "m_bActive", false);
-} */
-
-//CTFPowerupBottle::GetPowerupType
 int PowerupBottle_GetType(int bottle)
 {
 	if (TF2Attrib_HookValueInt(0, "critboost", bottle))
@@ -703,35 +665,15 @@ int PowerupBottle_GetType(int bottle)
 	return POWERUP_BOTTLE_NONE;
 }
 
-/* void PowerupBottle_SetNumCharges(int bottle, int numCharges)
-{
-	SetEntProp(bottle, Prop_Send, "m_usNumCharges", numCharges);
-	
-	TF2Attrib_SetByName(bottle, "powerup charges", float(numCharges));
-} */
-
 int PowerupBottle_GetNumCharges(int bottle)
 {
 	return GetEntProp(bottle, Prop_Send, "m_usNumCharges");
 }
 
-//CTFPowerupBottle::GetMaxNumCharges
 int PowerupBottle_GetMaxNumCharges(int bottle)
 {
 	return TF2Attrib_HookValueInt(0, "powerup_max_charges", bottle);
 }
-
-/* int GetCostOfCanteenType(PowerupBottleType_t type)
-{
-	switch (type)
-	{
-		case POWERUP_BOTTLE_CRITBOOST:	return 100;
-		case POWERUP_BOTTLE_UBERCHARGE:	return 75;
-		case POWERUP_BOTTLE_RECALL:	return 10;
-		case POWERUP_BOTTLE_REFILL_AMMO:	return 25;
-		case POWERUP_BOTTLE_BUILDINGS_INSTANT_UPGRADE:	return 50;
-	}
-} */
 
 int GetPowerupBottle(int client)
 {
@@ -744,7 +686,6 @@ int GetPowerupBottle(int client)
 	return ent;
 }
 
-//CTFFlameThrower::CanAirBlast
 bool CanWeaponAirblast(int weapon)
 {
 	return TF2Attrib_HookValueInt(0, "airblast_disabled", weapon) == 0;
@@ -806,22 +747,17 @@ int GetBestTargetForSpy(int client, const float max_distance)
 {
 	int target = -1;
 	
-	//Find the nearest enemy engineer
 	target = FindEnemyNearestToMe(client, max_distance, false, true, false, TFClass_Engineer);
 	
-	//Find the nearest stunned enemy
 	if (target == -1)
 		target = FindEnemyNearestToMe(client, max_distance, false, true, true);
 	
-	//Find the nearest enemy giant
 	if (target == -1)
 		target = FindEnemyNearestToMe(client, max_distance, true, true);
 	
-	//Find the nearest enemy
 	if (target == -1)
 		target = FindEnemyNearestToMe(client, max_distance, false, true);
 	
-	//Target their healer first, if they have one
 	if (target != -1)
 	{
 		int myTeam = GetClientTeam(client);
@@ -841,12 +777,6 @@ int GetBestTargetForSpy(int client, const float max_distance)
 	return target;
 }
 
-/* To trigger the robo sapper, you need to do several things
-- set a builder
-- set the object mode to MODE_SAPPER_ANTI_ROBOT or MODE_SAPPER_ANTI_ROBOT_RADIUS
-- parent the sapper to some entity
-- set the entity the sapper is being built on
-- then fire input Enable to call CObjectSapper::OnGoActive */
 int SpawnSapper(int owner, int entity, int weapon = -1)
 {
 	int sapper = CreateEntityByName("obj_attachment_sapper");
@@ -876,10 +806,8 @@ void RemoveEffects(int entity, int nEffects)
 		CBaseEntity(entity).DispatchUpdateTransmitState();
 }
 
-//Based on CTFKnife::CanPerformBackstabAgainstTarget
 bool HasBackstabPotential(int client)
 {
-	//These are MvM-specific conditions, where stunned bots are usually allowed to be backstabbed
 	if (TF2_GetClientTeam(client) == TFTeam_Blue)
 	{
 		if (TF2_IsPlayerInCondition(client, TFCond_MVMBotRadiowave))
@@ -986,7 +914,6 @@ int GetNearestEnemyCount(int client, const float max_distance, bool bIgnoreUber 
 		if (GetClientTeam(i) == myTeam)
 			continue;
 		
-		//Usually not a threat
 		if (IsSentryBusterRobot(i))
 			continue;
 		
@@ -1003,7 +930,6 @@ int GetNearestEnemyCount(int client, const float max_distance, bool bIgnoreUber 
 	return count;
 }
 
-//CBaseObject::FindBuildPointOnPlayer
 bool IsPlayerSappable(int client)
 {
 	if (TF2_IsPlayerInCondition(client, TFCond_Sapped))
@@ -1049,7 +975,6 @@ int GetNearestSappablePlayer(int client, const float max_distance, bool bGiantsO
 		if (class > TFClass_Unknown && TF2_GetPlayerClass(i) != class)
 			continue;
 		
-		//Not fast enough
 		if (speedCheck > 0.0 && GetEntPropFloat(i, Prop_Send, "m_flMaxspeed") < speedCheck)
 			continue;
 		
@@ -1163,30 +1088,23 @@ int GetControlPointByID(int pointID)
 	return -1;
 }
 
-//Return a capture area trigger associated with a control point that the team can capture
 int GetCapturableAreaTrigger(TFTeam team)
 {
 	int trigger = -1;
 	
-	//Look for a capture area trigger associated with a control point
 	while ((trigger = FindEntityByClassname(trigger, "trigger_*")) != -1)
 	{
-		//Only want capture areas
 		if (!HasEntProp(trigger, Prop_Data, "CTriggerAreaCaptureCaptureThink"))
 			continue;
 		
-		//Ignore disabled triggers
 		if (GetEntProp(trigger, Prop_Data, "m_bDisabled"))
 			continue;
 		
-		//Apparently some community maps don't disable the trigger when capped
 		char sCapPointName[32]; GetEntPropString(trigger, Prop_Data, "m_iszCapPointName", sCapPointName, sizeof(sCapPointName));
 		
-		//Trigger has no point associated with it
 		if (strlen(sCapPointName) < 3)
 			continue;
 		
-		//Now find the matching control point
 		int point = -1;
 		
 		while ((point = FindEntityByClassname(point, "team_control_point")) != -1)
@@ -1198,7 +1116,6 @@ int GetCapturableAreaTrigger(TFTeam team)
 			
 			char sName[32]; GetEntPropString(point, Prop_Data, "m_iName", sName, sizeof(sName));
 			
-			//Found the match?
 			if (strcmp(sName, sCapPointName, false) == 0)
 				return trigger;
 		}
@@ -1269,7 +1186,6 @@ bool IsPlayerHealingSomething(int client)
 	return TF2Util_GetWeaponID(weapon) == TF_WEAPON_MEDIGUN && GetEntPropEnt(weapon, Prop_Send, "m_hHealingTarget") != -1;
 }
 
-//CTFRevolver::CanHeadshot
 bool CanRevolverHeadshot(int weapon)
 {
 	return TF2Attrib_HookValueInt(0, "set_weapon_mode", weapon) == 1;
@@ -1343,7 +1259,6 @@ bool IsHealedByObject(int client)
 	return false;
 }
 
-//Return the only entity we can see, -2 if we can see them both
 int FindOnlyOneVisibleEntity(int client, int ent1, int ent2)
 {
 	if (!IsLineOfFireClearEntity(client, GetEyePosition(client), ent1))
@@ -1369,11 +1284,9 @@ int GetNearestCurrencyPack(int client, const float max_distance = 999999.0)
 	
 	while ((ent = FindEntityByClassname(ent, "item_currency*")) != -1)
 	{
-		//This pack has already been distributed to the team
 		if (GetEntProp(ent, Prop_Send, "m_bDistributed") == 1)
 			continue;
 		
-		//Wait for it to reach the ground the first
 		if (!(GetEntityFlags(ent) & FL_ONGROUND))
 			continue;
 		
@@ -1402,7 +1315,6 @@ bool CanUsePrimayWeapon(int client)
 	return true;
 }
 
-//bool CTFBot::IsLineOfFireClear( const Vector &from, const Vector &to ) const
 bool IsLineOfFireClearPosition(int client, const float from[3], const float to[3])
 {
 	StringMap adtProperties = new StringMap();
@@ -1416,7 +1328,6 @@ bool IsLineOfFireClearPosition(int client, const float from[3], const float to[3
 	return !TR_DidHit();
 }
 
-//bool CTFBot::IsLineOfFireClear( const Vector &from, CBaseEntity *who ) const
 bool IsLineOfFireClearEntity(int client, const float from[3], int who)
 {
 	StringMap adtProperties = new StringMap();
@@ -1434,7 +1345,6 @@ bool GetBombInfo(BombInfo_t info)
 {
 	int iAreaCount = TheNavAreas.Count;
 
-	//Check that this map has any nav areas
 	if (iAreaCount <= 0)
 		return false;
 
@@ -1444,10 +1354,8 @@ bool GetBombInfo(BombInfo_t info)
 	{
 		CTFNavArea area = view_as<CTFNavArea>(TheNavAreas.Get(i));
 		
-		//Skip spawn areas
 		if (area.HasAttributeTF(BLUE_SPAWN_ROOM) || area.HasAttributeTF(BLUE_SPAWN_ROOM))
 		{
-			//PrintToServer("Skip spawn area.. #%i", area.GetID());
 			continue;
 		}
 		
@@ -1462,13 +1370,8 @@ bool GetBombInfo(BombInfo_t info)
 	int flag = -1;
 	while ((flag = FindEntityByClassname(flag, "item_teamflag")) != -1)
 	{
-		//Ignore bombs not in play
 		if (GetEntProp(flag, Prop_Send, "m_nFlagStatus") == TF_FLAGINFO_HOME)
 			continue;
-		
-		//Ignore bombs not on our team
-		//if (GetEntProp(flag, Prop_Send, "m_iTeamNum") != view_as<int>(TFTeam_Blue))
-			//continue;
 			
 		float flag_pos[3];
 		
@@ -1501,9 +1404,6 @@ bool GetBombInfo(BombInfo_t info)
 		}
 	}
 	
-	//float range_back = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_backward_range").FloatValue;
-	//float range_fwd  = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_forward_range").FloatValue;
-	
 	float range_fwd   = 2300.0;
 	float range_back  = 1000.0;
 	
@@ -1518,11 +1418,10 @@ bool IsUpgradeStationEnabled(int station)
 {
 	static int iOffsetIsEnabled = -1;
 	
-	//m_bIsEnabled
 	if (iOffsetIsEnabled == -1)
 		iOffsetIsEnabled = FindDataMapInfo(station, "m_nStartDisabled") + 28;
 	
-	return GetEntData(station, iOffsetIsEnabled, 1);
+	return view_as<bool>(GetEntData(station, iOffsetIsEnabled, 1));
 }
 
 float[] GetAbsAngles(int entity)
@@ -1551,7 +1450,7 @@ CNavArea PickBuildArea(int client, float SentryRange = 1300.0)
     vecTargetPos[1] = bombinfo.vPosition[1];
     vecTargetPos[2] = bombinfo.vPosition[2] + 40.0;
     
-    CTFNavArea bombArea = TheNavMesh.GetNearestNavArea(vecTargetPos, false, 90000.0, false, true, TEAM_ANY);
+    CTFNavArea bombArea = view_as<CTFNavArea>(TheNavMesh.GetNearestNavArea(vecTargetPos, false, 90000.0, false, true, TEAM_ANY));
     
     if (bombArea == NULL_AREA)
     {
@@ -1626,13 +1525,13 @@ CNavArea PickBuildArea(int client, float SentryRange = 1300.0)
     
     if (TF2_GetClientTeam(client) == TFTeam_Blue)
     {
-        return PickBuildAreaBlue(client, SentryRange);
+        return PickBuildAreaBlue(client);
     }
     
     return randomArea;
 }
 
-CNavArea PickBuildAreaBlue(int client, float SentryRange = 1300.0)
+CNavArea PickBuildAreaBlue(int client)
 {
     int iAreaCount = TheNavAreas.Count;
 
@@ -1670,7 +1569,7 @@ CNavArea PickBuildAreaBlue(int client, float SentryRange = 1300.0)
         {            
             for (int iConnection = 0; iConnection < area.GetAdjacentCount(dir); iConnection++)
             {            
-                CTFNavArea adjArea = area.GetAdjacentArea(dir, iConnection);
+                CTFNavArea adjArea = view_as<CTFNavArea>(area.GetAdjacentArea(dir, iConnection));
                 
                 if (adjArea.HasAttributeTF(BLUE_SPAWN_ROOM) || adjArea.HasAttributeTF(RED_SPAWN_ROOM))
                     continue;
@@ -1809,13 +1708,11 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 
 	int iAreaCount = TheNavAreas.Count;
 
-	//Check that this map has any nav areas
 	if (iAreaCount <= 0)
 		return NULL_AREA;
 	
 	ArrayList EnemySpawnExits = new ArrayList();	
 
-	//Collect enemy exit areas after spawn door.
 	for (int i = 0; i < iAreaCount; i++)
 	{
 		CTFNavArea area = view_as<CTFNavArea>(TheNavAreas.Get(i));
@@ -1823,48 +1720,38 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 		if (area == NULL_AREA)
 			continue;
 		
-		//BLOCKED
 		if (area.HasAttributeTF(BLOCKED))
 			continue;
 		
-		//BLOCKED
 		if (area.HasAttributeTF(BLOCKED_AFTER_POINT_CAPTURE))
 			continue;
 		
-		//BLOCKED
 		if (area.HasAttributeTF(BLOCKED_UNTIL_POINT_CAPTURE))
 			continue;
 		
-		//Area in spawn but not an exit
 		if (GetTravelDistanceToBombTarget(area) <= 0.0 && !area.HasAttributeTF(SPAWN_ROOM_EXIT))
 			continue;
 		
-		//Area not an enemy spawn room exit
 		if (GetPlayerEnemyTeam(client) == TFTeam_Blue && !area.HasAttributeTF(BLUE_SPAWN_ROOM))
 			continue;
 		
-		//Area not an enemy spawn room exit
 		if (GetPlayerEnemyTeam(client) == TFTeam_Red && !area.HasAttributeTF(RED_SPAWN_ROOM))
 			continue;
 		
 		float flLowestBombTargetDistance = 999999.0;
 		CNavArea bestConnection = NULL_AREA;
 		
-		//Check spawn exit connections 
 		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; dir++)
 		{			
-			//Only connections with BOMB_DROP attribute are considered good.
 			for (int iConnection = 0; iConnection < area.GetAdjacentCount(dir); iConnection++)
 			{			
-				CTFNavArea adjArea = area.GetAdjacentArea(dir, iConnection);
+				CTFNavArea adjArea = view_as<CTFNavArea>(area.GetAdjacentArea(dir, iConnection));
 				
-				//Area still in spawn... BAD
 				if (adjArea.HasAttributeTF(BLUE_SPAWN_ROOM) || adjArea.HasAttributeTF(RED_SPAWN_ROOM))
 					continue;
 				
 				float flBombTargetDistance = GetTravelDistanceToBombTarget(adjArea);
 				
-				//Area most likely in spawn
 				if (flBombTargetDistance <= 0.0)
 					continue;
 				
@@ -1879,32 +1766,26 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 		if (bestConnection != NULL_AREA)
 		{
 			EnemySpawnExits.Push(bestConnection);
-			//g_hAreasToDraw.Push(bestConnection);
 		}
 	}
 	
-	//We've failed men.
 	if (EnemySpawnExits.Length <= 0)
 	{
 		EnemySpawnExits.Close();
 		return NULL_AREA;
 	}
 	
-	//Random valid exit point.
 	CNavArea RandomEnemySpawnExit = EnemySpawnExits.Get(GetRandomInt(0, EnemySpawnExits.Length - 1));
 	
 	EnemySpawnExits.Close();
 	
-	//Search outward of the random exit untill we are some distance away.
 	float vecExitCenter[3];
 	RandomEnemySpawnExit.GetCenter(vecExitCenter);
 	vecExitCenter[2] += 45.0;
-	
-	//PrintToServer("%f %f %f", vecExitCenter[0], vecExitCenter[1], vecExitCenter[2]);
 
-	ArrayList AreasCloser                  = new ArrayList();	//Not necessarily visible but still <= 3000.0
+	ArrayList AreasCloser                  = new ArrayList();
 	ArrayList VisibleAreas                 = new ArrayList();
-	ArrayList VisibleAreasAfterSentryRange = new ArrayList();	//>= SentryRange
+	ArrayList VisibleAreasAfterSentryRange = new ArrayList();
 	
 	for (int i = 0; i < iAreaCount; i++)
 	{
@@ -1916,8 +1797,6 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 		if (area.HasAttributeTF((BLUE_SPAWN_ROOM | RED_SPAWN_ROOM)))
 			continue;
 		
-		//TODO
-		//Better solution because this will break on all non mvm maps.
 		if (!area.HasAttributeTF(BOMB_DROP))
 			continue;
 			
@@ -1934,7 +1813,6 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 		if (flDistance > (SentryRange * 0.75) && flDistance <= SentryRange * 1.25)
 		{
 			VisibleAreasAfterSentryRange.Push(area);
-			//g_hAreasToDraw.Push(area);
 		}
 		
 		if (flDistance <= SentryRange)
@@ -1942,8 +1820,6 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 		
 		VisibleAreas.Push(area);
 	}
-	
-	//PrintToServer("PickBuildAreaPreRound %i VisibleAreas | %i VisibleAreasAfterSentryRange | %i AreasCloser", VisibleAreas.Length, VisibleAreasAfterSentryRange.Length, AreasCloser.Length);
 	
 	CNavArea bestArea = NULL_AREA;
 	
@@ -1955,7 +1831,6 @@ CNavArea PickBuildAreaPreRound(int client, float SentryRange = 1300.0)
 	VisibleAreas.Close();
 	VisibleAreasAfterSentryRange.Close();
 	
-	//DrawArea(bestArea, false, 6.0);
 	return bestArea;
 }
 
@@ -2076,17 +1951,6 @@ void AddEngineerSpot(float position[3])
     SaveEngineerSpots();
 }
 
-void RemoveEngineerSpot(int index)
-{
-    if (g_hEngineerSpots == null || index < 0 || index >= g_hEngineerSpots.Length)
-    {
-        return;
-    }
-    
-    g_hEngineerSpots.Erase(index);
-    SaveEngineerSpots();
-}
-
 int GetEngineerSpotCount()
 {
     if (g_hEngineerSpots == null)
@@ -2136,7 +2000,6 @@ stock int ReadInt(Address pAddr)
 	return LoadFromAddress(pAddr, NumberType_Int32);
 }
 
-//Somewhat borrowed from [L4D2] Survivor Bot AI Improver
 stock void SnapViewToPosition(int iClient, const float fPos[3])
 {
 	float clientEyePos[3]; GetClientEyePosition(iClient, clientEyePos);
@@ -2179,7 +2042,6 @@ stock bool IsPlayerReady(int client)
 
 stock bool IsMeleeWeapon(int entity)
 {
-	//THINKFUNC Smack
 	return HasEntProp(entity, Prop_Data, "CTFWeaponBaseMeleeSmack");
 }
 
@@ -2195,13 +2057,11 @@ stock void SetPlayerReady(int client, bool state)
 
 stock bool IsPluginMvMCreditsLoaded()
 {
-	//tf_mvm_credits
 	return FindConVar("sm_mvmcredits_version") != null;
 }
 
 stock bool IsPluginRTDLoaded()
 {
-	//rtd
 	return FindConVar("sm_rtd2_version") != null;
 }
 
@@ -2217,7 +2077,6 @@ stock void PlayerBuyback(int client)
 	FakeClientCommand(client, "td_buyback");
 }
 
-//From stocksoup/entity_tools.inc
 stock bool ParentEntity(int parent, int attachment, const char[] attachPoint = "",
 		bool maintainOffset = false) {
 	SetVariantString("!activator");
@@ -2229,9 +2088,10 @@ stock bool ParentEntity(int parent, int attachment, const char[] attachPoint = "
 				maintainOffset? "SetParentAttachmentMaintainOffset" : "SetParentAttachment",
 				parent, parent);
 	}
+	
+	return true;
 }
 
-//TODO: should use an actual call to CBaseEntity::IsDeflectable
 stock bool CanBeReflected(int projectile)
 {
 	char classname[32]; GetEntityClassname(projectile, classname, sizeof(classname));
@@ -2347,15 +2207,12 @@ stock bool IsServerFull()
 	return GetClientCount(false) >= MaxClients;
 }
 
-//From stocksoup/memory.inc
 stock Address DereferencePointer(Address addr) {
-	// maybe someday we'll do 64-bit addresses
 	return view_as<Address>(LoadFromAddress(addr, NumberType_Int32));
 }
 
 stock void TFBot_NoticeThreat(int tfbot, int threat)
 {
-	//UpdateDelayedThreatNotices is called in CTFBotTacticalMonitor::Update, but that behavior can be interrupted so we use it here to ensure he's noticed
 	OSLib_RunScriptCode(tfbot, _, _, "self.DelayedThreatNotice(EntIndexToHScript(%d),0);self.UpdateDelayedThreatNotices()", threat);
 }
 
@@ -2385,17 +2242,13 @@ stock int GetTeamHumanClientCount(int team)
 	return count;
 }
 
-/* TODO: remove this as we have a better way to do this
-we are only doing this for right now until we can solve a potential issue */
 stock int TEMP_GetPlayerMaxHealth(int client)
 {
 	return GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
 }
 
-//This seems heavily based on PlayerLocomotion::Approach
 stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3])
 {
-	//WASD Movement
 	float forward3D[3];
 	BasePlayer_EyeVectors(client, forward3D);
 	
@@ -2408,13 +2261,11 @@ stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3]
 	right[0] = vForward[1];
 	right[1] = -vForward[0];
 
-	//PlayerLocomotion::GetFeet
 	float vFeet[3]; GetClientAbsOrigin(client, vFeet);
 	
 	float to[3]; 
 	SubtractVectors(vGoal, vFeet, to);
 
-	/*float goalDistance = */
 	NormalizeVector(to, to);
 
 	float ahead = GetVectorDotProduct(to, vForward);
@@ -2424,23 +2275,19 @@ stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3]
 
 	if (ahead > epsilon)
 	{
-		//PressForwardButton();
 		vVel[0] = PLAYER_SIDESPEED;
 	}
 	else if (ahead < -epsilon)
 	{
-		//PressBackwardButton();
 		vVel[0] = -PLAYER_SIDESPEED;
 	}
 
 	if (side <= -epsilon)
 	{
-		//PressLeftButton();
 		vVel[1] = -PLAYER_SIDESPEED;
 	}
 	else if (side >= epsilon)
 	{
-		//PressRightButton();
 		vVel[1] = PLAYER_SIDESPEED;
 	}
 }

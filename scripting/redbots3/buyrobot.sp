@@ -49,7 +49,6 @@ float fLastWaveBeginTime = 0.0;
 float g_flLastSendTime = 0.0;
 int g_iWaveBonusCounter = 0;
 int g_iWaveFailCounterTick;
-Handle g_hGrayMannTimer = INVALID_HANDLE;
 float g_flLastSendTime2 = 0.0;
 int g_iWaveBonusCounter2 = 0;
 float g_flLastAnySendTime = 0.0;
@@ -58,7 +57,6 @@ int g_iBuyPlayerPoints[MAXPLAYERS + 1];
 int g_iBuyRobotLives[MAXPLAYERS + 1];
 int g_iBuyRobotOwner[MAXPLAYERS + 1];
 float g_flBuyLastBotBuyTime[MAXPLAYERS + 1];
-float m_flNextSnipeFireTime[MAXPLAYERS + 1];
 
 Handle g_hSpawnCheckTimer = INVALID_HANDLE;
 float g_flLastPosition[MAXPLAYERS + 1][3];
@@ -67,12 +65,10 @@ float g_flStuckTime[MAXPLAYERS + 1];
 int g_iBuyRobotHatIndex[MAXPLAYERS + 1];
 int g_iWaitingForRename[MAXPLAYERS + 1];
 
-// Temporary loadout storage for purchase
 int g_iTempLoadoutPrimary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
 int g_iTempLoadoutSecondary[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
 int g_iTempLoadoutMelee[MAXPLAYERS + 1] = {TF_ITEMDEF_DEFAULT, ...};
 
-// Current purchase data
 char g_sCurrentClass[MAXPLAYERS + 1][32];
 int g_iCurrentPrice[MAXPLAYERS + 1];
 int g_iCurrentBotCount[MAXPLAYERS + 1];
@@ -105,8 +101,6 @@ static ConVar g_cvBuyUseCustomSpawns;
 static char g_sSpawnConfigFile[PLATFORM_MAX_PATH];
 static char g_sSystemTime[32];
 static TFTeam g_tempAddTeam;
-static int g_iSelectedSpawnType = SPAWN_TYPE_RED;
-static ConVar g_cvBuySpawnDefaultColor;
 
 bool g_bSaxtonVoteOnCooldown = false;
 bool g_bGrayVoteOnCooldown = false;
@@ -418,7 +412,6 @@ void BuyRobot_Init()
     g_cvBuyRemoveUnitsBots = CreateConVar("sm_buyrobot_remove_units_bots", "1", "Remove Saxton Hale AI bots when wave completes or fails", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvGrayMannAI = CreateConVar("sm_buyrobot_gray_mann_ai", "0", "Enable Gray Mann AI to send reinforcements based on team strength (Invaders)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvGrayMannDelay = CreateConVar("sm_buyrobot_gray_mann_delay", "20.0", "Delay in seconds between Gray Mann reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
-    g_cvBuySpawnDefaultColor = CreateConVar("sm_buyrobot_spawn_default_color", "0", "Default spawn color (0=Red, 1=Blue)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvMaxBossPerTeam = CreateConVar("sm_buyrobot_max_boss_per_team", "1", "Maximum Boss robots allowed per team", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     g_cvMaxWaitingQueueTotal = CreateConVar("sm_buyrobot_max_queue_total", "50", "Maximum total robots in waiting queue", FCVAR_NOTIFY, true, 1.0, true, 100.0);
     g_cvMaxWaitingQueuePerPlayer = CreateConVar("sm_buyrobot_max_queue_per_player", "5", "Maximum robots per player in waiting queue", FCVAR_NOTIFY, true, 1.0, true, 100.0);
@@ -594,7 +587,6 @@ public Action Command_ListRobots(int client, int args)
         int health = GetClientHealth(i);
         int maxHealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, i);
         int lives = g_iBuyRobotLives[i];
-        int maxLives = g_cvBuyDefaultLives.IntValue;
         
         int owner = g_iBuyRobotOwner[i];
         char ownerName[64] = "Server";
@@ -689,7 +681,6 @@ public Action Command_RobotInfo(int client, int args)
     
     int lives = g_iBuyRobotLives[target];
     int owner = g_iBuyRobotOwner[target];
-    TFClassType class = TF2_GetPlayerClass(target);
     int health = GetClientHealth(target);
     int maxHealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, target);
     TFTeam team = TF2_GetClientTeam(target);
@@ -1056,7 +1047,6 @@ void AdminShowHatMenu(int client, int target)
 {
     char robotName[64];
     GetClientName(target, robotName, sizeof(robotName));
-    TFClassType class = TF2_GetPlayerClass(target);
     
     Menu menu = new Menu(MenuHandler_AdminHatSelect);
     
@@ -1426,7 +1416,7 @@ void ShowHatMenu(int client, int target)
 {
     char robotName[64];
     GetClientName(target, robotName, sizeof(robotName));
-    TFClassType class = TF2_GetPlayerClass(target);
+    TFClassType playerClass = TF2_GetPlayerClass(target);
     
     Menu menu = new Menu(MenuHandler_HatSelect);
     
@@ -1540,8 +1530,7 @@ void ShowHatMenu(int client, int target)
     
     menu.AddItem("", " ", ITEMDRAW_SPACER);
     menu.AddItem("", "=== Class-Specific Hats ===", ITEMDRAW_DISABLED);
-    
-    switch (class)
+	    switch (playerClass)
     {
         case TFClass_Scout:
         {
@@ -1980,11 +1969,11 @@ public Action BuyRobot_Command(int client, int args)
             return Plugin_Handled;
         }
         
-        BuyRobot_ShowMainMenu(client, team);
+        BuyRobot_ShowMainMenu(client);
         return Plugin_Handled;
     }
     
-    BuyRobot_ShowMainMenu(client, team);
+    BuyRobot_ShowMainMenu(client);
     return Plugin_Handled;
 }
 
@@ -2291,11 +2280,6 @@ int GetWaitingCountForPlayer(int client)
     return count;
 }
 
-int GetTotalWaitingCount()
-{
-    return g_hWaitingQueue.Length;
-}
-
 void ClearWaitingQueueForPlayer(int client)
 {
     int userId = GetClientUserId(client);
@@ -2346,9 +2330,7 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
         int lives = StringToInt(parts[2]);
         char prefix[32]; strcopy(prefix, sizeof(prefix), parts[3]);
         TFTeam team = view_as<TFTeam>(StringToInt(parts[4]));
-        int price = StringToInt(parts[5]);
         int botCount = StringToInt(parts[6]);
-        int category = StringToInt(parts[7]);
         int primaryWeapon = StringToInt(parts[8]);
         int secondaryWeapon = StringToInt(parts[9]);
         int meleeWeapon = StringToInt(parts[10]);
@@ -2795,7 +2777,7 @@ public Action BuyRobot_GivePoints(int client, int args)
     {
         g_iBuyPlayerPoints[targets[i]] += points;
         BuyRobot_SavePlayerPoints(targets[i]);
-	BuyRobot_SaveAllPoints();
+        BuyRobot_SaveAllPoints();
         LogAction(client, targets[i], "\"%L\" gave %d points to \"%L\"", client, points, targets[i]);
         
         if (targets[i] != client && IsValidClientIndex(targets[i]))
@@ -2817,7 +2799,7 @@ public Action BuyRobot_ResetPoints(int client, int args)
         {
             g_iBuyPlayerPoints[i] = 0;
             BuyRobot_SavePlayerPoints(i);
-	    BuyRobot_SaveAllPoints();
+            BuyRobot_SaveAllPoints();
         }
         else
         {
@@ -2850,7 +2832,7 @@ public Action Command_ResetPointsData(int client, int args)
     return Plugin_Handled;
 }
 
-void BuyRobot_ShowMainMenu(int client, TFTeam team)
+void BuyRobot_ShowMainMenu(int client)
 {
     Menu menu = new Menu(BuyRobot_MenuMainHandler);
     int currentBots = BuyRobot_GetPurchasedCount();
@@ -2900,7 +2882,7 @@ void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
         if (bossCount >= g_cvMaxBossPerTeam.IntValue)
         {
             PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Your team already has a Boss robot! Only 1 Boss allowed per team.");
-            BuyRobot_ShowMainMenu(client, team);
+            BuyRobot_ShowMainMenu(client);
             return;
         }
     }
@@ -2950,7 +2932,7 @@ void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
         {
             PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You already have %d robots in waiting queue (max %d)!", 
                 waitingCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
-            BuyRobot_ShowMainMenu(client, team);
+            BuyRobot_ShowMainMenu(client);
             return;
         }
         PrintToChat(client, "\x07FFD700[Buy Robot]\x01 Bot limit reached! Your purchase will be queued. (Queue: %d/%d)", 
@@ -3015,7 +2997,6 @@ void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
 
 void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int botCount, int category, TFTeam team)
 {
-    // If custom loadouts are disabled, skip to confirm purchase with default loadout
     if (!g_cvBuyUseCustomLoadouts.BoolValue)
     {
         g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
@@ -3025,7 +3006,6 @@ void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int bot
         return;
     }
     
-    // Reset temp loadout if class changed
     if (!StrEqual(g_sCurrentClass[client], class))
     {
         g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
@@ -3033,12 +3013,10 @@ void BuyRobot_ShowLoadoutMenu(int client, const char[] class, int price, int bot
         g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
     }
     
-    // Initialize temp loadout if not set
     if (g_iTempLoadoutPrimary[client] == 0) g_iTempLoadoutPrimary[client] = TF_ITEMDEF_DEFAULT;
     if (g_iTempLoadoutSecondary[client] == 0) g_iTempLoadoutSecondary[client] = TF_ITEMDEF_DEFAULT;
     if (g_iTempLoadoutMelee[client] == 0) g_iTempLoadoutMelee[client] = TF_ITEMDEF_DEFAULT;
     
-    // Set current purchase data
     strcopy(g_sCurrentClass[client], sizeof(g_sCurrentClass[]), class);
     g_iCurrentPrice[client] = price;
     g_iCurrentBotCount[client] = botCount;
@@ -3122,7 +3100,7 @@ public int BuyRobot_MenuLoadoutHandler(Menu menu, MenuAction action, int param1,
     {
         int client = param1;
         TFTeam team = TF2_GetClientTeam(client);
-        BuyRobot_ShowMainMenu(client, team);
+        BuyRobot_ShowClassMenu(client, g_iCurrentCategory[client], team);
     }
     else if (action == MenuAction_End)
     {
@@ -3175,9 +3153,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    // Add similar blocks for other classes...
-    // For brevity, I'll add a few more
-    
     else if (StrEqual(class, "soldier"))
     {
         if (StrEqual(slot, "primary"))
@@ -3214,7 +3189,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "pyro"))
     {
         if (StrEqual(slot, "primary"))
@@ -3251,7 +3225,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "demoman"))
     {
         if (StrEqual(slot, "primary"))
@@ -3288,8 +3261,7 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
-    else if (StrEqual(class, "heavy"))
+    else if (StrEqual(class, "heavyweapons"))
     {
         if (StrEqual(slot, "primary"))
         {
@@ -3325,7 +3297,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "engineer"))
     {
         if (StrEqual(slot, "primary"))
@@ -3362,7 +3333,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "medic"))
     {
         if (StrEqual(slot, "primary"))
@@ -3399,7 +3369,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "sniper"))
     {
         if (StrEqual(slot, "primary"))
@@ -3436,7 +3405,6 @@ void BuyRobot_ShowWeaponMenu(int client, const char[] class, const char[] slot, 
             }
         }
     }
-    
     else if (StrEqual(class, "spy"))
     {
         if (StrEqual(slot, "secondary"))
@@ -3490,7 +3458,6 @@ public int BuyRobot_MenuWeaponHandler(Menu menu, MenuAction action, int param1, 
         teamInt = StringToInt(parts[6]);
         TFTeam team = view_as<TFTeam>(teamInt);
         
-        // Save the selected weapon
         if (StrEqual(slot, "primary"))
         {
             g_iTempLoadoutPrimary[client] = itemDef;
@@ -3518,11 +3485,10 @@ public int BuyRobot_MenuWeaponHandler(Menu menu, MenuAction action, int param1, 
     return 0;
 }
 
-// Check if a weapon is valid for a specific class and slot
 bool IsValidWeaponForClassSlot(const char[] class, const char[] slot, int itemDef)
 {
     if (itemDef == TF_ITEMDEF_DEFAULT)
-        return true; // Default is always valid
+        return true;
     
     if (StrEqual(class, "scout", false))
     {
@@ -3607,7 +3573,6 @@ bool IsValidWeaponForClassSlot(const char[] class, const char[] slot, int itemDe
     return false;
 }
 
-// Helper to find int in array
 int FindIntInArray(const int[] array, int arraySize, int value)
 {
     for (int i = 0; i < arraySize; i++)
@@ -3620,7 +3585,6 @@ int FindIntInArray(const int[] array, int arraySize, int value)
 
 void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int botCount, int category, TFTeam team)
 {
-    // Validate loadout weapons belong to the selected class
     if (!IsValidWeaponForClassSlot(class, "primary", g_iTempLoadoutPrimary[client]))
     {
         PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Invalid primary weapon for %s!", class);
@@ -3699,7 +3663,7 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
         PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Bot limit reached! %d %s added to waiting queue. (Your queue: %d/%d)", 
             botCount, className, waitingCount + botCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
         
-        if (g_cvBuyNotifyDefenderPurchase.BoolValue)
+        if (g_cvBuyNotifyHumanPurchase.BoolValue)
         {
             char teamColor[16];
             char teamName[16];
@@ -3731,7 +3695,7 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
             }
         }
         
-        BuyRobot_ShowMainMenu(client, team);
+        BuyRobot_ShowMainMenu(client);
         return;
     }
     
@@ -3788,7 +3752,7 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
         }
     }
     
-    BuyRobot_ShowMainMenu(client, team);
+    BuyRobot_ShowMainMenu(client);
 }
 
 public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, int param2)
@@ -3815,8 +3779,7 @@ public int BuyRobot_MenuClassHandler(Menu menu, MenuAction action, int param1, i
     else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
     {
         int client = param1;
-        TFTeam team = TF2_GetClientTeam(client);
-        BuyRobot_ShowMainMenu(client, team);
+        BuyRobot_ShowMainMenu(client);
     }
     else if (action == MenuAction_End)
     {
@@ -4016,7 +3979,6 @@ public Action BuyRobot_SetupBot(Handle timer, DataPack pack)
     g_iBuyRobotLives[client] = lives;
     g_iBuyRobotOwner[client] = buyer;
     
-    // Set custom loadout before marking the bot as purchased to avoid early randomization.
     if (primaryWeapon != TF_ITEMDEF_DEFAULT)
         m_iWeaponPrimary[client] = primaryWeapon;
     else
@@ -4102,8 +4064,8 @@ void BuyRobot_ApplyInfiniteMetal(int client)
 {
     if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
-    TFClassType class = TF2_GetPlayerClass(client);
-    if (class == TFClass_Engineer)
+    TFClassType playerClass = TF2_GetPlayerClass(client);
+    if (playerClass == TFClass_Engineer)
     {
         if (TF2Attrib_IsValidAttributeName("maxammo metal increased"))
             TF2Attrib_SetByName(client, "maxammo metal increased", 999.0);
@@ -4124,7 +4086,6 @@ void BuyRobot_ApplyAttributes(int client)
     
     if (isGiant || isBoss) return;
     
-    TFClassType class = TF2_GetPlayerClass(client);
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
@@ -4179,7 +4140,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int client = GetClientOfUserId(userid);
     if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     
     int health = 3000;
     float speed = 0.5;
@@ -4187,7 +4148,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     float airblastVuln = 0.4;
     float footstep = 0.0;
     
-    switch (class)
+    switch (playerClass)
     {
         case TFClass_Soldier:
         {
@@ -4302,7 +4263,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
-	TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
+        TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo primary increased"))
@@ -4312,7 +4273,7 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
-	TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
+        TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon2, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo secondary increased"))
@@ -4322,15 +4283,15 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 2.7);
+        TF2Attrib_SetByName(melee, "damage bonus", 2.7);
     }
     
-    if (class == TFClass_Engineer)
+    if (playerClass == TFClass_Engineer)
     {
         CreateTimer(0.5, Timer_ApplyBuildingGiant, GetClientUserId(client), TIMER_REPEAT);
     }
     
-    if (class == TFClass_Heavy && weapon != -1)
+    if (playerClass == TFClass_Heavy && weapon != -1)
         TF2Attrib_SetByName(weapon, "aiming movespeed increased", 2.0);
     
     SetEntProp(client, Prop_Send, "m_iHealth", health);
@@ -4357,7 +4318,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     int client = GetClientOfUserId(userid);
     if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     
     int health = 30000;
     float speed = 0.7;
@@ -4365,7 +4326,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     float airblastVuln = 0.4;
     float footstep = 0.0;
     
-    switch (class)
+    switch (playerClass)
     {
         case TFClass_Soldier:
         {
@@ -4480,7 +4441,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
-	TF2Attrib_SetByName(weapon, "damage bonus", 3.6);
+        TF2Attrib_SetByName(weapon, "damage bonus", 3.6);
         TF2Attrib_SetByName(weapon, "fire rate bonus", 0.3);
         TF2Attrib_SetByName(weapon, "faster reload rate", 0.1);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
@@ -4492,7 +4453,7 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
-	TF2Attrib_SetByName(weapon2, "damage bonus", 3.6);
+        TF2Attrib_SetByName(weapon2, "damage bonus", 3.6);
         TF2Attrib_SetByName(weapon2, "fire rate bonus", 0.3);
         TF2Attrib_SetByName(weapon2, "faster reload rate", 0.1);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
@@ -4504,16 +4465,16 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 5.6);
-        TF2Attrib_SetByName(melee, "fire rate bonus", 0.3);
+        TF2Attrib_SetByName(melee, "damage bonus", 5.6);
+        TF2Attrib_SetByName(melee, "fire rate bonus", 0.4);
     }
     
-    if (class == TFClass_Engineer)
+    if (playerClass == TFClass_Engineer)
     {
         CreateTimer(0.5, Timer_ApplyBuildingGiant, GetClientUserId(client), TIMER_REPEAT);
     }
     
-    if (class == TFClass_Heavy && weapon != -1)
+    if (playerClass == TFClass_Heavy && weapon != -1)
         TF2Attrib_SetByName(weapon, "aiming movespeed increased", 2.0);
     
     SetEntProp(client, Prop_Send, "m_iHealth", health);
@@ -4571,16 +4532,16 @@ public Action Timer_ApplyBuildingGiant(Handle timer, int userid)
         if (GetEntPropEnt(ent, Prop_Send, "m_hBuilder") != client)
             continue;
         
-        int objType = TF2_GetObjectType(ent);
+        int objType = view_as<int>(TF2_GetObjectType(ent));
         
-        if (objType == TFObject_Sentry)
+        if (objType == view_as<int>(TFObject_Sentry))
         {
             SetEntPropFloat(ent, Prop_Send, "m_flModelScale", 1.3);
             SetVariantString("1.3");
             AcceptEntityInput(ent, "SetModelScale");
         }
         
-        if (objType == TFObject_Dispenser)
+        if (objType == view_as<int>(TFObject_Dispenser))
         {
             SetEntPropFloat(ent, Prop_Send, "m_flModelScale", 1.1);
             SetVariantString("1.1");
@@ -4595,7 +4556,7 @@ void BuyRobot_ApplyModel(int client)
 {
     if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
     
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     char modelPath[PLATFORM_MAX_PATH];
     
     char clientName[64];
@@ -4605,7 +4566,7 @@ void BuyRobot_ApplyModel(int client)
     
     if (isGiant || isBoss)
     {
-        switch (class)
+        switch (playerClass)
         {
             case TFClass_Heavy:    modelPath = "models/bots/heavy_boss/bot_heavy_boss.mdl";
             case TFClass_Scout:    modelPath = "models/bots/scout_boss/bot_scout_boss.mdl";
@@ -4617,7 +4578,7 @@ void BuyRobot_ApplyModel(int client)
     }
     else
     {
-        switch (class)
+        switch (playerClass)
         {
             case TFClass_Soldier:  modelPath = "models/bots/soldier/bot_soldier.mdl";
             case TFClass_Pyro:     modelPath = "models/bots/pyro/bot_pyro.mdl";
@@ -4655,10 +4616,10 @@ void BuyRobot_EquipZombieCosmetic(int client)
         }
     }
     
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     int iDefIndex;
     
-    switch (class)
+    switch (playerClass)
     {
         case TFClass_Scout:    iDefIndex = 5617;
         case TFClass_Soldier:  iDefIndex = 5618;
@@ -4763,6 +4724,7 @@ public Action BuyRobot_SoundHook_Death(int clients[64], int &numClients, char sa
     
     return Plugin_Continue;
 }
+
 public Action BuyRobot_GiantSoundHook(int clients[64], int &numClients, char sound[PLATFORM_MAX_PATH], int &Ent, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
     if (Ent < 1 || Ent > MaxClients || !IsClientInGame(Ent)) 
@@ -4781,10 +4743,10 @@ public Action BuyRobot_GiantSoundHook(int clients[64], int &numClients, char sou
     
     if (TF2_GetPlayerClass(client) == TFClass_Medic || TF2_GetPlayerClass(client) == TFClass_Spy || TF2_GetPlayerClass(client) == TFClass_Engineer || TF2_GetPlayerClass(client) == TFClass_Sniper)
     {
-    	if (StrContains(sound, "vo/", false) != -1)
-    	{
-       	    return Plugin_Stop;
-    	}
+        if (StrContains(sound, "vo/", false) != -1)
+        {
+            return Plugin_Stop;
+        }
     }
     
     if (StrContains(sound, "vo/", false) == -1 || StrContains(sound, "announcer", false) != -1) return Plugin_Continue;
@@ -4817,9 +4779,9 @@ public Action Timer_PlayGiantLoop(Handle timer, int userid)
     int client = GetClientOfUserId(userid);
     if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return Plugin_Stop;
     
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     
-    switch(class)
+    switch(playerClass)
     {
         case TFClass_Scout:
             EmitSoundToAll(GIANTSCOUT_SND_LOOP, client, _, SNDLEVEL_DISHWASHER, SND_CHANGEVOL, 1.0);
@@ -4988,7 +4950,6 @@ public Action Timer_ReapplyWeaponsAttributes(Handle timer, int userid)
 
 void BuyRobot_ReapplyWeaponsAttributes(int client)
 {
-    TFClassType class = TF2_GetPlayerClass(client);
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
@@ -5015,7 +4976,7 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
-	TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
+        TF2Attrib_SetByName(weapon, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo primary increased"))
@@ -5025,7 +4986,7 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
-	TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
+        TF2Attrib_SetByName(weapon2, "damage bonus", 1.7);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
             TF2Attrib_SetByName(weapon2, "ammo regen", 999.0);
         else if (TF2Attrib_IsValidAttributeName("maxammo secondary increased"))
@@ -5035,7 +4996,7 @@ void BuyRobot_ReapplyGiantWeaponsAttributes(int client)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 2.7);
+        TF2Attrib_SetByName(melee, "damage bonus", 2.7);
     }
 }
 
@@ -5046,7 +5007,7 @@ void BuyRobot_ReapplyBossWeaponsAttributes(int client)
     int weapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
     if (weapon != -1) 
     {
-	TF2Attrib_SetByName(weapon, "damage bonus", 3.6);
+        TF2Attrib_SetByName(weapon, "damage bonus", 3.6);
         TF2Attrib_SetByName(weapon, "fire rate bonus", 0.3);
         TF2Attrib_SetByName(weapon, "faster reload rate", 0.1);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
@@ -5058,7 +5019,7 @@ void BuyRobot_ReapplyBossWeaponsAttributes(int client)
     int weapon2 = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
     if (weapon2 != -1) 
     {
-	TF2Attrib_SetByName(weapon2, "damage bonus", 3.6);
+        TF2Attrib_SetByName(weapon2, "damage bonus", 3.6);
         TF2Attrib_SetByName(weapon2, "fire rate bonus", 0.3);
         TF2Attrib_SetByName(weapon2, "faster reload rate", 0.1);
         if (TF2Attrib_IsValidAttributeName("ammo regen"))
@@ -5070,7 +5031,7 @@ void BuyRobot_ReapplyBossWeaponsAttributes(int client)
     int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
     if (melee != -1) 
     {
-	TF2Attrib_SetByName(melee, "damage bonus", 5.6);
+        TF2Attrib_SetByName(melee, "damage bonus", 5.6);
         TF2Attrib_SetByName(melee, "fire rate bonus", 0.4);
     }
 }
@@ -5572,9 +5533,9 @@ void CheckAndSendSaxtonHale()
         if (!IsClientInGame(i))
             continue;
         
-        int team = TF2_GetClientTeam(i);
+        int team = view_as<int>(TF2_GetClientTeam(i));
         
-        if (team == TFTeam_Blue)
+        if (team == view_as<int>(TFTeam_Blue))
         {
             if (IsPlayerAlive(i))
             {
@@ -5590,7 +5551,7 @@ void CheckAndSendSaxtonHale()
                 }
             }
         }
-        else if (team == TFTeam_Red)
+        else if (team == view_as<int>(TFTeam_Red))
         {
             if (IsFakeClient(i) && g_bBuyIsPurchasedRobot[i])
             {
@@ -5833,9 +5794,9 @@ void CheckAndSendGrayMann()
         if (!IsClientInGame(i))
             continue;
         
-        int team = TF2_GetClientTeam(i);
+        int team = view_as<int>(TF2_GetClientTeam(i));
         
-        if (team == TFTeam_Red)
+        if (team == view_as<int>(TFTeam_Red))
         {
             if (IsPlayerAlive(i))
             {
@@ -5851,7 +5812,7 @@ void CheckAndSendGrayMann()
                 }
             }
         }
-        else if (team == TFTeam_Blue)
+        else if (team == view_as<int>(TFTeam_Blue))
         {
             if (IsPlayerAlive(i))
             {
@@ -6096,89 +6057,89 @@ public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcas
         CreateTimer(0.5, Timer_GrayMann, _, TIMER_REPEAT);
     }
     
-if (g_cvBuyWaveBonusEnable.BoolValue)
-{
-    int currentBots = BuyRobot_GetPurchasedCount();
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    
-    if (currentBots >= maxBots)
+    if (g_cvBuyWaveBonusEnable.BoolValue)
     {
-        char messages[5][256];
+        int currentBots = BuyRobot_GetPurchasedCount();
+        int maxBots = g_cvBuyMaxBots.IntValue;
         
-        messages[0] = "\x07FF4500Saxton Hale\x01: I wanted to send reinforcements but we're at max capacity! (%d/%d robots)";
-        messages[1] = "\x07FF4500Saxton Hale\x01: Sorry lads, no room for more robots! (%d/%d)";
-        messages[2] = "\x07FF4500Saxton Hale\x01: The robot bay is full! Can't send more! (%d/%d)";
-        messages[3] = "\x07FF4500Saxton Hale\x01: We're packed to the brim! (%d/%d robots already!)";
-        messages[4] = "\x07FF4500Saxton Hale\x01: Maybe next wave! No space left! (%d/%d)";
-        
-        int random = GetRandomInt(0, 4);
-        PrintToChatAll(messages[random], currentBots, maxBots);
-        return;
-    }
-    
-    int availableSlots = maxBots - currentBots;
-    int chance = g_cvBuyWaveBonusChance.IntValue;
-    
-    if (GetRandomInt(1, 100) <= chance)
-    {
-        int bonusCount = g_cvBuyWaveBonusCount.IntValue;
-        
-        if (bonusCount > availableSlots)
+        if (currentBots >= maxBots)
         {
-            bonusCount = availableSlots;
-        }
-        
-        if (bonusCount > 0)
-        {
-            char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
-            int classCount[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+            char messages[5][256];
             
-            for (int i = 0; i < bonusCount; i++)
-            {
-                int randomClass = GetRandomInt(0, sizeof(classes) - 1);
-                char className[32];
-                BuyRobot_GetClassName(classes[randomClass], className, sizeof(className));
-                
-                BuyRobot_CreateBot(classes[randomClass], 0, 1, className, true, TFTeam_Red);
-                classCount[randomClass]++;
-            }
-            
-            char classList[256];
-            classList[0] = '\0';
-            bool first = true;
-            
-            for (int i = 0; i < 9; i++)
-            {
-                if (classCount[i] > 0)
-                {
-                    char displayName[32];
-                    BuyRobot_GetClassName(classes[i], displayName, sizeof(displayName));
-                    
-                    if (!first)
-                        StrCat(classList, sizeof(classList), ", ");
-                    
-                    if (classCount[i] > 1)
-                        Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
-                    else
-                        Format(classList, sizeof(classList), "%s%s", classList, displayName);
-                    
-                    first = false;
-                }
-            }
-            
-            char successMessages[5][256];
-            
-            successMessages[0] = "\x07FF4500Saxton Hale\x01: I sent reinforcements: %s!";
-            successMessages[1] = "\x07FF4500Saxton Hale\x01: Here's %s to smash those tin cans!";
-            successMessages[2] = "\x07FF4500Saxton Hale\x01: Sent %s to show Gray Mann who's boss!";
-            successMessages[3] = "\x07FF4500Saxton Hale\x01: %s incoming! Now THAT'S Australian!";
-            successMessages[4] = "\x07FF4500Saxton Hale\x01: Don't worry, I sent %s to help!";
+            messages[0] = "\x07FF4500Saxton Hale\x01: I wanted to send reinforcements but we're at max capacity! (%d/%d robots)";
+            messages[1] = "\x07FF4500Saxton Hale\x01: Sorry lads, no room for more robots! (%d/%d)";
+            messages[2] = "\x07FF4500Saxton Hale\x01: The robot bay is full! Can't send more! (%d/%d)";
+            messages[3] = "\x07FF4500Saxton Hale\x01: We're packed to the brim! (%d/%d robots already!)";
+            messages[4] = "\x07FF4500Saxton Hale\x01: Maybe next wave! No space left! (%d/%d)";
             
             int random = GetRandomInt(0, 4);
-            PrintToChatAll(successMessages[random], classList);
+            PrintToChatAll(messages[random], currentBots, maxBots);
+            return;
+        }
+        
+        int availableSlots = maxBots - currentBots;
+        int chance = g_cvBuyWaveBonusChance.IntValue;
+        
+        if (GetRandomInt(1, 100) <= chance)
+        {
+            int bonusCount = g_cvBuyWaveBonusCount.IntValue;
+            
+            if (bonusCount > availableSlots)
+            {
+                bonusCount = availableSlots;
+            }
+            
+            if (bonusCount > 0)
+            {
+                char classes[][] = {"scout", "soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "sniper"};
+                int classCount[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+                
+                for (int i = 0; i < bonusCount; i++)
+                {
+                    int randomClass = GetRandomInt(0, sizeof(classes) - 1);
+                    char className[32];
+                    BuyRobot_GetClassName(classes[randomClass], className, sizeof(className));
+                    
+                    BuyRobot_CreateBot(classes[randomClass], 0, 1, className, true, TFTeam_Red);
+                    classCount[randomClass]++;
+                }
+                
+                char classList[256];
+                classList[0] = '\0';
+                bool first = true;
+                
+                for (int i = 0; i < 9; i++)
+                {
+                    if (classCount[i] > 0)
+                    {
+                        char displayName[32];
+                        BuyRobot_GetClassName(classes[i], displayName, sizeof(displayName));
+                        
+                        if (!first)
+                            StrCat(classList, sizeof(classList), ", ");
+                        
+                        if (classCount[i] > 1)
+                            Format(classList, sizeof(classList), "%s%d %s", classList, classCount[i], displayName);
+                        else
+                            Format(classList, sizeof(classList), "%s%s", classList, displayName);
+                        
+                        first = false;
+                    }
+                }
+                
+                char successMessages[5][256];
+                
+                successMessages[0] = "\x07FF4500Saxton Hale\x01: I sent reinforcements: %s!";
+                successMessages[1] = "\x07FF4500Saxton Hale\x01: Here's %s to smash those tin cans!";
+                successMessages[2] = "\x07FF4500Saxton Hale\x01: Sent %s to show Gray Mann who's boss!";
+                successMessages[3] = "\x07FF4500Saxton Hale\x01: %s incoming! Now THAT'S Australian!";
+                successMessages[4] = "\x07FF4500Saxton Hale\x01: Don't worry, I sent %s to help!";
+                
+                int random = GetRandomInt(0, 4);
+                PrintToChatAll(successMessages[random], classList);
+            }
         }
     }
-}
 }
 
 public Action BuyRobot_ResetWaveBeginFlag(Handle timer)
@@ -6334,7 +6295,6 @@ public Action BuyRobot_AutoBuy(Handle timer)
         
         if (!bought)
         {
-            char allClasses[9][32] = {"soldier", "pyro", "demoman", "heavyweapons", "engineer", "medic", "spy", "scout", "sniper"};
             int prices[9];
             
             prices[0] = g_cvPriceSoldier.IntValue;
@@ -6498,9 +6458,9 @@ void BuyRobot_GetClassName(const char[] class, char[] buffer, int maxlen)
     else strcopy(buffer, maxlen, "Robot");
 }
 
-void BuyRobot_GetClassNameForSound(TFClassType class, char[] buffer, int maxlen)
+void BuyRobot_GetClassNameForSound(TFClassType playerClass, char[] buffer, int maxlen)
 {
-    switch (class)
+    switch (playerClass)
     {
         case TFClass_Soldier: strcopy(buffer, maxlen, "Soldier");
         case TFClass_Pyro: strcopy(buffer, maxlen, "Pyro");
@@ -6517,8 +6477,8 @@ void BuyRobot_GetClassNameForSound(TFClassType class, char[] buffer, int maxlen)
 
 void BuyRobot_GetRobotClassString(int client, char[] buffer, int maxlen)
 {
-    TFClassType class = TF2_GetPlayerClass(client);
-    switch (class)
+    TFClassType playerClass = TF2_GetPlayerClass(client);
+    switch (playerClass)
     {
         case TFClass_Soldier: strcopy(buffer, maxlen, "Soldier");
         case TFClass_Pyro: strcopy(buffer, maxlen, "Pyro");
@@ -6703,34 +6663,6 @@ void BuyRobot_ForceDownloadMaterials()
     {
         AddFileToDownloadsTable(files[i]);
         PrecacheGeneric(files[i], true);
-    }
-}
-
-void BuyRobot_SetMission(int client, int mission)
-{
-    if (!IsValidClientIndex(client) || !g_bBuyIsPurchasedRobot[client]) return;
-    
-    Handle hSetMission = null;
-    
-    if (hSetMission == null)
-    {
-        Handle hGameConf = LoadGameConfigFile("tf2.defenderbots");
-        if (hGameConf != null)
-        {
-            StartPrepSDKCall(SDKCall_Player);
-            if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "CTFBot::SetMission"))
-            {
-                PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-                PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-                hSetMission = EndPrepSDKCall();
-            }
-            delete hGameConf;
-        }
-    }
-    
-    if (hSetMission != null)
-    {
-        SDKCall(hSetMission, client, mission, false);
     }
 }
 
@@ -8177,7 +8109,7 @@ void BuyRobot_EquipHat(int client)
 
     BuyRobot_RemoveWearables(client);
 
-    TFClassType class = TF2_GetPlayerClass(client);
+    TFClassType playerClass = TF2_GetPlayerClass(client);
     int hatIndex;
     
     if (isPurchased)
@@ -8186,7 +8118,7 @@ void BuyRobot_EquipHat(int client)
             hatIndex = g_iBuyRobotHatIndex[client];
         else
         {
-            hatIndex = BuyRobot_GetRandomHatForClass(class);
+            hatIndex = BuyRobot_GetRandomHatForClass(playerClass);
             if (hatIndex != -1)
                 g_iBuyRobotHatIndex[client] = hatIndex;
         }
@@ -8197,7 +8129,7 @@ void BuyRobot_EquipHat(int client)
             hatIndex = g_iDefenderBotHatIndex[client];
         else
         {
-            hatIndex = BuyRobot_GetRandomHatForClass(class);
+            hatIndex = BuyRobot_GetRandomHatForClass(playerClass);
             if (hatIndex != -1)
                 g_iDefenderBotHatIndex[client] = hatIndex;
         }
@@ -8221,7 +8153,7 @@ void BuyRobot_EquipHat(int client)
     SDKCall(hEquipWearable, client, hat);
 }
 
-int BuyRobot_GetRandomHatForClass(TFClassType class)
+int BuyRobot_GetRandomHatForClass(TFClassType playerClass)
 {
     if (g_hBuyRobotHats == null || g_hBuyRobotHats.Length == 0)
         return -1;
@@ -8238,7 +8170,7 @@ int BuyRobot_GetRandomHatForClass(TFClassType class)
             continue;
         }
         
-        switch (class)
+        switch (playerClass)
         {
             case TFClass_Scout:    if (IsScoutHat(hatIndex)) validHats.Push(hatIndex);
             case TFClass_Soldier:  if (IsSoldierHat(hatIndex)) validHats.Push(hatIndex);
@@ -8361,7 +8293,7 @@ void BuyRobot_OnMapStart()
 
     if (g_hWaitingQueue != null)
     {
-    	g_hWaitingQueue.Clear();
+        g_hWaitingQueue.Clear();
     }
     
     if (g_hSpawnPoints != null)

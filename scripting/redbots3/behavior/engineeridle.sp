@@ -22,7 +22,6 @@ bool g_bGoingToGrabBuilding[MAXPLAYERS + 1];
 int m_hBuildingToGrab[MAXPLAYERS + 1];
 bool g_bIsHelpingTeammate[MAXPLAYERS + 1];
 float m_flNextHelpCheck[MAXPLAYERS + 1];
-bool g_bEvadingBuster[MAXPLAYERS + 1];
 
 float GetScaledDistance(int client, float distance)
 {
@@ -211,7 +210,6 @@ static Action CTFBotMvMEngineerIdle_Update(BehaviorAction action, int actor, flo
         return action.Continue();
     }
     
-    // SÓ chama PickBuildArea se realmente precisa de um novo spot
     if ((m_aNestArea[actor] == NULL_AREA || bShouldAdvance) || sentry == INVALID_ENT_REFERENCE)
     {
         if (m_ctFindNestHint[actor] > 0.0 && m_ctFindNestHint[actor] > GetGameTime())
@@ -228,80 +226,73 @@ static Action CTFBotMvMEngineerIdle_Update(BehaviorAction action, int actor, flo
     if (bShouldAdvance)
         return action.Continue();
 
-// ============================================================
-// PRIORIDADE 0: FUGIR DE SENTRY BUSTER
-// ============================================================
-if (TF2_GetClientTeam(actor) == TFTeam_Red)
-{
-    int buster = FindNearestSentryBuster(actor);
-    if (buster != -1 && sentry != INVALID_ENT_REFERENCE)
+    if (TF2_GetClientTeam(actor) == TFTeam_Red)
     {
-        float busterPos[3], sentryPos[3];
-        GetClientAbsOrigin(buster, busterPos);
-        GetEntPropVector(sentry, Prop_Send, "m_vecOrigin", sentryPos);
-        
-        float distToBuster = GetVectorDistance(sentryPos, busterPos);
-        
-        if (distToBuster < 600.0)
+        int buster = FindNearestSentryBuster(actor);
+        if (buster != -1 && sentry != INVALID_ENT_REFERENCE)
         {
-            if (!TF2_IsCarryingObject(actor))
+            float busterPos[3], sentryPos[3];
+            GetClientAbsOrigin(buster, busterPos);
+            GetEntPropVector(sentry, Prop_Send, "m_vecOrigin", sentryPos);
+            
+            float distToBuster = GetVectorDistance(sentryPos, busterPos);
+            
+            if (distToBuster < 600.0)
             {
-                float distToSentry = GetVectorDistance(GetAbsOrigin(actor), sentryPos);
-                
-                if (distToSentry < 120.0)
+                if (!TF2_IsCarryingObject(actor))
                 {
-                    EquipWeaponSlot(actor, TFWeaponSlot_Melee);
-                    AimHeadTowards(myBody, WorldSpaceCenter(sentry), CRITICAL, 0.5, _, "Grab sentry - Buster!");
-                    VS_PressAltFireButton(actor);
+                    float distToSentry = GetVectorDistance(GetAbsOrigin(actor), sentryPos);
                     
-                    if (TF2_IsCarryingObject(actor))
+                    if (distToSentry < 120.0)
                     {
-                        float fleeDir[3];
-                        SubtractVectors(sentryPos, busterPos, fleeDir);
-                        NormalizeVector(fleeDir, fleeDir);
+                        EquipWeaponSlot(actor, TFWeaponSlot_Melee);
+                        AimHeadTowards(myBody, WorldSpaceCenter(sentry), CRITICAL, 0.5, _, "Grab sentry - Buster!");
+                        VS_PressAltFireButton(actor);
                         
-                        float fleePos[3];
-                        fleePos[0] = sentryPos[0] + (fleeDir[0] * 400.0);
-                        fleePos[1] = sentryPos[1] + (fleeDir[1] * 400.0);
-                        fleePos[2] = sentryPos[2];
-                        
-                        g_arrPluginBot[actor].SetPathGoalVector(fleePos);
+                        if (TF2_IsCarryingObject(actor))
+                        {
+                            float fleeDir[3];
+                            SubtractVectors(sentryPos, busterPos, fleeDir);
+                            NormalizeVector(fleeDir, fleeDir);
+                            
+                            float fleePos[3];
+                            fleePos[0] = sentryPos[0] + (fleeDir[0] * 400.0);
+                            fleePos[1] = sentryPos[1] + (fleeDir[1] * 400.0);
+                            fleePos[2] = sentryPos[2];
+                            
+                            g_arrPluginBot[actor].SetPathGoalVector(fleePos);
+                            g_arrPluginBot[actor].bPathing = true;
+                        }
+                    }
+                    else
+                    {
+                        g_arrPluginBot[actor].SetPathGoalEntity(sentry);
                         g_arrPluginBot[actor].bPathing = true;
                     }
                 }
                 else
                 {
-                    g_arrPluginBot[actor].SetPathGoalEntity(sentry);
+                    float fleeDir[3];
+                    SubtractVectors(sentryPos, busterPos, fleeDir);
+                    NormalizeVector(fleeDir, fleeDir);
+                    
+                    float fleePos[3];
+                    fleePos[0] = GetAbsOrigin(actor)[0] + (fleeDir[0] * 400.0);
+                    fleePos[1] = GetAbsOrigin(actor)[1] + (fleeDir[1] * 400.0);
+                    fleePos[2] = GetAbsOrigin(actor)[2];
+                    
+                    g_arrPluginBot[actor].SetPathGoalVector(fleePos);
                     g_arrPluginBot[actor].bPathing = true;
                 }
+                
+                return action.Continue();
             }
-            else
+            else if (TF2_IsCarryingObject(actor))
             {
-                float fleeDir[3];
-                SubtractVectors(sentryPos, busterPos, fleeDir);
-                NormalizeVector(fleeDir, fleeDir);
-                
-                float fleePos[3];
-                fleePos[0] = GetAbsOrigin(actor)[0] + (fleeDir[0] * 400.0);
-                fleePos[1] = GetAbsOrigin(actor)[1] + (fleeDir[1] * 400.0);
-                fleePos[2] = GetAbsOrigin(actor)[2];
-                
-                g_arrPluginBot[actor].SetPathGoalVector(fleePos);
-                g_arrPluginBot[actor].bPathing = true;
+                VS_PressFireButton(actor);
             }
-            
-            return action.Continue();
-        }
-        else if (TF2_IsCarryingObject(actor))
-        {
-            VS_PressFireButton(actor);
         }
     }
-}
-    
-    // ============================================================
-    // PRIORIDADE 1: REPARAR CONSTRUÇÕES DANIFICADAS
-    // ============================================================
     
     if (sentry != INVALID_ENT_REFERENCE) 
     {
@@ -455,10 +446,6 @@ if (TF2_GetClientTeam(actor) == TFTeam_Red)
         }
     }
     
-    // ============================================================
-    // PRIORIDADE 2: CONSTRUIR O QUE FALTA
-    // ============================================================
-
     if (sentry == INVALID_ENT_REFERENCE)
     {
         if (m_ctSentryCooldown[actor] < GetGameTime()) 
@@ -513,9 +500,6 @@ if (TF2_GetClientTeam(actor) == TFTeam_Red)
         }
     }
     
-    // ============================================================
-    // PRIORIDADE 3: AJUDAR ENGENHEIROS ALIADOS
-    // ============================================================
     if (!g_bIsHelpingTeammate[actor] && CTFBotMvMEngineerIdle_ShouldHelpTeammateEngineer(actor))
     {
         int teammateToHelp = CTFBotMvMEngineerIdle_FindTeammateEngineerToHelp(actor);
@@ -528,31 +512,28 @@ if (TF2_GetClientTeam(actor) == TFTeam_Red)
         }
     }
     
-if (g_bIsHelpingTeammate[actor])
-{
-    if (g_bEngineerHelpDisabled[actor])
+    if (g_bIsHelpingTeammate[actor])
     {
-        g_bIsHelpingTeammate[actor] = false;
-    }
-    else
-    {
-        int teammateToHelp = CTFBotMvMEngineerIdle_FindTeammateEngineerToHelp(actor);
-        
-        if (teammateToHelp != -1)
-        {
-            CTFBotMvMEngineerIdle_HelpTeammateEngineer(actor, teammateToHelp);
-            return action.Continue();
-        }
-        else
+        if (g_bEngineerHelpDisabled[actor])
         {
             g_bIsHelpingTeammate[actor] = false;
         }
+        else
+        {
+            int teammateToHelp = CTFBotMvMEngineerIdle_FindTeammateEngineerToHelp(actor);
+            
+            if (teammateToHelp != -1)
+            {
+                CTFBotMvMEngineerIdle_HelpTeammateEngineer(actor, teammateToHelp);
+                return action.Continue();
+            }
+            else
+            {
+                g_bIsHelpingTeammate[actor] = false;
+            }
+        }
     }
-}
     
-    // ============================================================
-    // PRIORIDADE 4: WRANGLER
-    // ============================================================
     if (sentry != -1 && dispenser != -1)
     {
         if (m_ctSentrySafe[actor] > GetGameTime() && !g_bGoingToGrabBuilding[actor])
@@ -583,9 +564,6 @@ if (g_bIsHelpingTeammate[actor])
         }
     }
     
-    // ============================================================
-    // PRIORIDADE 5: ATUALIZAR SENTRY SAFE
-    // ============================================================
     if (m_aNestArea[actor] != NULL_AREA && sentry != INVALID_ENT_REFERENCE)
     {
         bool isMini = TF2_IsMiniBuilding(sentry);
@@ -608,69 +586,65 @@ if (g_bIsHelpingTeammate[actor])
         m_ctSentryCooldown[actor] = GetGameTime() + 3.0;
     }
     
-// ============================================================
-// PRIORIDADE 6: FICAR NA SENTRY
-// ============================================================
-if (sentry != INVALID_ENT_REFERENCE) 
-{
-    float dist = GetVectorDistance(GetAbsOrigin(actor), GetAbsOrigin(sentry));
-    float requiredDist = GetScaledDistance(actor, 90.0);
-    
-    if (dist > requiredDist)
+    if (sentry != INVALID_ENT_REFERENCE) 
     {
-        if (m_ctRecomputePathMvMEngiIdle[actor] < GetGameTime()) 
+        float dist = GetVectorDistance(GetAbsOrigin(actor), GetAbsOrigin(sentry));
+        float requiredDist = GetScaledDistance(actor, 90.0);
+        
+        if (dist > requiredDist)
         {
-            m_ctRecomputePathMvMEngiIdle[actor] = GetGameTime() + GetRandomFloat(1.0, 2.0);
-            
-            float vTurretAngles[3];
-            GetTurretAngles(sentry, vTurretAngles);
-            float dir[3];
-            GetAngleVectors(vTurretAngles, dir, NULL_VECTOR, NULL_VECTOR);
-            
-            float goal[3];
-            goal = GetAbsOrigin(sentry);
-            goal[0] -= (50.0 * dir[0]);
-            goal[1] -= (50.0 * dir[1]);
-            goal[2] -= (50.0 * dir[2]);
-            
-            if (IsPathToVectorPossible(actor, goal))
-                g_arrPluginBot[actor].SetPathGoalVector(goal);
-            else
-                g_arrPluginBot[actor].SetPathGoalEntity(sentry);
+            if (m_ctRecomputePathMvMEngiIdle[actor] < GetGameTime()) 
+            {
+                m_ctRecomputePathMvMEngiIdle[actor] = GetGameTime() + GetRandomFloat(1.0, 2.0);
+                
+                float vTurretAngles[3];
+                GetTurretAngles(sentry, vTurretAngles);
+                float dir[3];
+                GetAngleVectors(vTurretAngles, dir, NULL_VECTOR, NULL_VECTOR);
+                
+                float goal[3];
+                goal = GetAbsOrigin(sentry);
+                goal[0] -= (50.0 * dir[0]);
+                goal[1] -= (50.0 * dir[1]);
+                goal[2] -= (50.0 * dir[2]);
+                
+                if (IsPathToVectorPossible(actor, goal))
+                    g_arrPluginBot[actor].SetPathGoalVector(goal);
+                else
+                    g_arrPluginBot[actor].SetPathGoalEntity(sentry);
+                
+                g_arrPluginBot[actor].bPathing = true;
+            }
             
             g_arrPluginBot[actor].bPathing = true;
+            return action.Continue();
         }
         
-        g_arrPluginBot[actor].bPathing = true;
-        return action.Continue();
-    }
-    
-    g_arrPluginBot[actor].bPathing = false;
-    
-    if (dist < requiredDist) 
-    {
-        if (!myLoco.IsStuck())
-            g_arrExtraButtons[actor].PressButtons(IN_DUCK, 0.1);
+        g_arrPluginBot[actor].bPathing = false;
         
-        EquipWeaponSlot(actor, TFWeaponSlot_Melee);
-        UpdateLookAroundForEnemies(actor, false);
-        AimHeadTowards(myBody, WorldSpaceCenter(sentry), CRITICAL, 1.0, _, "Work on my Sentry");
-        VS_PressFireButton(actor);
+        if (dist < requiredDist) 
+        {
+            if (!myLoco.IsStuck())
+                g_arrExtraButtons[actor].PressButtons(IN_DUCK, 0.1);
+            
+            EquipWeaponSlot(actor, TFWeaponSlot_Melee);
+            UpdateLookAroundForEnemies(actor, false);
+            AimHeadTowards(myBody, WorldSpaceCenter(sentry), CRITICAL, 1.0, _, "Work on my Sentry");
+            VS_PressFireButton(actor);
+        }
     }
-}
 
-// FALLBACK: Se tudo está pronto e ele está longe da sentry, force pathing
-if (sentry != INVALID_ENT_REFERENCE && dispenser != INVALID_ENT_REFERENCE)
-{
-    float dist = GetVectorDistance(GetAbsOrigin(actor), GetAbsOrigin(sentry));
-    if (dist > 200.0 && !g_arrPluginBot[actor].bPathing)
+    if (sentry != INVALID_ENT_REFERENCE && dispenser != INVALID_ENT_REFERENCE)
     {
-        g_arrPluginBot[actor].SetPathGoalEntity(sentry);
-        g_arrPluginBot[actor].bPathing = true;
+        float dist = GetVectorDistance(GetAbsOrigin(actor), GetAbsOrigin(sentry));
+        if (dist > 200.0 && !g_arrPluginBot[actor].bPathing)
+        {
+            g_arrPluginBot[actor].SetPathGoalEntity(sentry);
+            g_arrPluginBot[actor].bPathing = true;
+        }
     }
-}
 
-return action.Continue();
+    return action.Continue();
 }
 
 static void CTFBotMvMEngineerIdle_OnEnd(BehaviorAction action, int actor, BehaviorAction priorAction, ActionResult result)
@@ -745,7 +719,7 @@ bool CTFBotMvMEngineerIdle_ShouldAdvanceNestSpot(int actor)
 		return false;
 	}
 	
-	float m_flBombTargetDistance = GetTravelDistanceToBombTarget(m_aNestArea[actor]);
+	float m_flBombTargetDistance = GetTravelDistanceToBombTarget(view_as<CTFNavArea>(m_aNestArea[actor]));
 	
 	if (m_flBombTargetDistance <= 1000.0)
 	{

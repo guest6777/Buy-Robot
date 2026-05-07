@@ -15,18 +15,14 @@ static Action CTFBotDefenderAttack_OnStart(BehaviorAction action, int actor, Beh
 {
 	m_pPath[actor].SetMinLookAheadDistance(GetDesiredPathLookAheadRange(actor));
 	
-	//NOTE: the attack target is usually chosen before we enter this action with CTFBotDefenderAttack_SelectTarget
-	
 	m_flRevalidateTarget[actor] = GetGameTime() + 3.0;
-	
-	// UpdateLookAroundForEnemies(actor, true);
 	
 	return action.Continue();
 }
 
 static Action CTFBotDefenderAttack_Update(BehaviorAction action, int actor, float interval, ActionResult result)
 {
-    if (TF2_GetPlayerClass(actor) == TFClass_Sniper && GetTFBotMission(actor) == CTFBot_MISSION_SNIPER)
+    if (TF2_GetPlayerClass(actor) == TFClass_Sniper && GetTFBotMission(actor) == view_as<int>(CTFBot_MISSION_SNIPER))
     {
         if (CanUsePrimayWeapon(actor))
         {
@@ -165,7 +161,6 @@ static bool IsTargetEntityReachable(int client, int target)
 	if ((TF2_GetClientTeam(client) == TFTeam_Red && area.HasAttributeTF(BLUE_SPAWN_ROOM))
 	|| (TF2_GetClientTeam(client) == TFTeam_Blue && area.HasAttributeTF(RED_SPAWN_ROOM)))
 	{
-		//Usually cannot enter enemy spawns
 		return false;
 	}
 	

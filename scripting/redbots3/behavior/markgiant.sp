@@ -74,17 +74,15 @@ public Action CTFBotMarkGiant_Update(BehaviorAction action, int actor, float int
 	
 	if (dist_to_target < 512.0)
 	{
-		//TODO: aim directly on target instead of doing this dumb shit
 		IVision myVision = myBot.GetVisionInterface();
 		
-		if (myVision.GetKnownCount(TFTeam_Blue) > 1 || myVision.GetKnown(m_iTarget[actor]) == NULL_KNOWN_ENTITY)
+		if (myVision.GetKnownCount(view_as<int>(TFTeam_Blue)) > 1 || myVision.GetKnown(m_iTarget[actor]) == NULL_KNOWN_ENTITY)
 		{
 			myVision.ForgetAllKnownEntities();
 			myVision.AddKnownEntity(m_iTarget[actor]);
 		}
 	}
 	
-	//TODO: stop pathing once we reached the desired attack range
 	if (m_flRepathTime[actor] <= GetGameTime())
 	{
 		m_flRepathTime[actor] = GetGameTime() + GetRandomFloat(1.0, 2.0);
@@ -100,7 +98,6 @@ public void CTFBotMarkGiant_OnEnd(BehaviorAction action, int actor, BehaviorActi
 {
 	m_flNextMarkTime[actor] = GetGameTime() + 30.0;
 	m_iTarget[actor] = -1;
-	// UpdateLookAroundForEnemies(actor, true);
 }
 
 int GetMarkForDeathWeapon(int player)
@@ -114,7 +111,7 @@ int GetMarkForDeathWeapon(int player)
 		
 		int m_iItemDefinitionIndex = GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex")
 		
-		if (m_iItemDefinitionIndex == 355) //Fan O'War
+		if (m_iItemDefinitionIndex == 355)
 			return weapon;
 	}
 	
@@ -126,31 +123,24 @@ bool IsPlayerMarkable(int bot, int victim)
 	if (m_flNextMarkTime[bot] < GetGameTime())
 		return false;
 
-	/* must be ingame */
 	if (!IsClientInGame(victim))
 		return false;
 
-	/* must be alive */
 	if (!IsPlayerAlive(victim)) 
 		return false;
 	
-	/* must be an enemy */
 	if (BaseEntity_GetTeamNumber(bot) == BaseEntity_GetTeamNumber(victim)) 
 		return false;
 	
-	/* must be a giant */
 	if (!TF2_IsMiniBoss(victim)) 
 		return false;
 	
-	/* must not be a sentry buster */
 	if (IsSentryBusterRobot(victim))
 		return false;
 	
-	/* must not already be marked for death */
 	if (TF2_IsPlayerInCondition(victim, TFCond_MarkedForDeath)) 
 		return false;
 	
-	/* must not be invulnerable */
 	if (TF2_IsInvulnerable(victim))
 		return false;
 	
