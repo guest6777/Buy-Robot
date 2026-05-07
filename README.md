@@ -1,8 +1,9 @@
 ## ⚠️ Important: Materials & Models Folders + FastDL
 
-Make sure to upload the **`models`** folder to your server. Without them, some textures, icons, and models may appear as **missing/error** (purple and black checkerboard, or giant ERROR signs).
+Make sure to upload the **`materials`** and **`models`** folder to your server. Without them, some textures, icons, and models may appear as **missing/error** (purple and black checkerboard, or giant ERROR signs).
 
 **Server paths:**
+- `tf/materials/`
 - `tf/models/`
 
 ### For FastDL (Recommended)
