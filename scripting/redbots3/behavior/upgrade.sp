@@ -160,18 +160,21 @@ public void CTFBotUpgrade_OnEnd(BehaviorAction action, int actor, BehaviorAction
 		}
 	}
 
-	if (IsHalloweenActive() && g_bBuyIsPurchasedRobot[actor])
+	if (g_bBuyIsPurchasedRobot[actor])
 	{
-		CreateTimer(0.5, Timer_ReapplyZombieAfterUpgrade, GetClientUserId(actor), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.1, Timer_ReapplyCosmeticsAfterUpgrade, GetClientUserId(actor), TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
-public Action Timer_ReapplyZombieAfterUpgrade(Handle timer, int userid)
+public Action Timer_ReapplyCosmeticsAfterUpgrade(Handle timer, int userid)
 {
 	int client = GetClientOfUserId(userid);
-	if (client && IsClientInGame(client) && g_bBuyIsPurchasedRobot[client] && IsPlayerAlive(client) && IsHalloweenActive())
+	if (client && IsClientInGame(client) && g_bBuyIsPurchasedRobot[client] && IsPlayerAlive(client))
 	{
-		BuyRobot_EquipZombieCosmetic(client);
+		if (IsHalloweenActive())
+		{
+			TF2_RespawnPlayer(client);
+		}
 	}
 	return Plugin_Stop;
 }

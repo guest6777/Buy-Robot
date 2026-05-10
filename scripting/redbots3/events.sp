@@ -213,8 +213,11 @@ static Action Timer_PlayerSpawn(Handle timer, int data)
     
     if (StrContains(clientName, TFBOT_IDENTITY_NAME) != -1 || isPurchased)
     {
-        if (TF2_GetClientTeam(data) != TFTeam_Red && !isPurchased)
-            return Plugin_Stop;
+	if (TF2_GetClientTeam(data) != TFTeam_Red && !isPurchased)
+	{
+	    TF2_ChangeClientTeam(data, TFTeam_Red);
+	    return Plugin_Stop;
+	}
         
         g_bIsDefenderBot[data] = true;
         g_bHasBoughtUpgrades[data] = false;

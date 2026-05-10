@@ -58,7 +58,10 @@ bool IsValidBot(int client)
     if (TF2_GetClientTeam(client) == TFTeam_Blue)
         return g_bBuyIsPurchasedRobot[client];
     
-    return (g_bIsDefenderBot[client] || g_bBuyIsPurchasedRobot[client]);
+    if (TF2_GetClientTeam(client) == TFTeam_Red)
+        return (g_bIsDefenderBot[client] || g_bBuyIsPurchasedRobot[client]);
+    
+    return false;
 }
 
 #include "behavior/attack.sp"
@@ -697,8 +700,9 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
             {
                 if (TF2_GetPlayerClass(client) == TFClass_Engineer)
                 {
+                    ActionResult newResult = action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
                     SetPlayerReady(client, true);
-                    return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
+                    return newResult;
                 }
                 
                 if (TF2_GetPlayerClass(client) == TFClass_Medic)
@@ -715,16 +719,19 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
                 
                 if (TF2_GetPlayerClass(client) == TFClass_Spy)
                 {
+                    ActionResult newResult = action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (giant)");
                     SetPlayerReady(client, true);
-                    return action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (giant)");
+                    return newResult;
                 }
                 
+                ActionResult newResult = action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (giant robot)");
                 SetPlayerReady(client, true);
-                return action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (giant robot)");
+                return newResult;
             }
             
+            ActionResult newResult = action.SuspendFor(CTFBotMoveToFront(), "BLUE team - no upgrades");
             SetPlayerReady(client, true);
-            return action.SuspendFor(CTFBotMoveToFront(), "BLUE team - no upgrades");
+            return newResult;
         }
         else if (state == RoundState_RoundRunning)
         {
@@ -794,8 +801,9 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
             {
                 if (TF2_GetPlayerClass(client) == TFClass_Engineer)
                 {
+                    ActionResult newResult = action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
                     SetPlayerReady(client, true);
-                    return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (giant)");
+                    return newResult;
                 }
                 
                 if (TF2_GetPlayerClass(client) == TFClass_Medic)
@@ -812,12 +820,14 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
                 
                 if (TF2_GetPlayerClass(client) == TFClass_Spy)
                 {
+                    ActionResult newResult = action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (giant)");
                     SetPlayerReady(client, true);
-                    return action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (giant)");
+                    return newResult;
                 }
                 
+                ActionResult newResult = action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (giant robot)");
                 SetPlayerReady(client, true);
-                return action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (giant robot)");
+                return newResult;
             }
             
             if (g_bBuyIsPurchasedRobot[client])
@@ -833,8 +843,9 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
                 {
                     if (TF2_GetPlayerClass(client) == TFClass_Engineer)
                     {
+                        ActionResult newResult = action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (purchased)");
                         SetPlayerReady(client, true);
-                        return action.SuspendFor(CTFBotMvMEngineerIdle(), "Engineer building (purchased)");
+                        return newResult;
                     }
                     
                     if (TF2_GetPlayerClass(client) == TFClass_Medic)
@@ -851,12 +862,14 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
                     
                     if (TF2_GetPlayerClass(client) == TFClass_Spy)
                     {
+                        ActionResult newResult = action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (purchased)");
                         SetPlayerReady(client, true);
-                        return action.SuspendFor(CTFBotSpyLurkMvM(), "Spy lurking (purchased)");
+                        return newResult;
                     }
                     
+                    ActionResult newResult = action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (purchased robot)");
                     SetPlayerReady(client, true);
-                    return action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading (purchased robot)");
+                    return newResult;
                 }
             }
             
@@ -866,8 +879,9 @@ Action GetDesiredBotAction(int client, BehaviorAction action)
             }
             else
             {
+                ActionResult newResult = action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading");
                 SetPlayerReady(client, true);
-                return action.SuspendFor(CTFBotMoveToFront(), "Skip upgrading");
+                return newResult;
             }
         }
     }
@@ -973,17 +987,32 @@ Action GetUpgradePostAction(int client, BehaviorAction action)
         {
             if (TF2_GetPlayerClass(client) == TFClass_Engineer)
             {
+                ActionResult newResult = action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
                 SetPlayerReady(client, true);
-                return action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+                return newResult;
             }
             else if (TF2_GetPlayerClass(client) == TFClass_Medic)
+            {
+                SetPlayerReady(client, true);
                 return action.Done("Start heal mission");
+            }
             else if (TF2_GetPlayerClass(client) == TFClass_Spy)
-                return action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+            {
+                ActionResult newResult = action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+                SetPlayerReady(client, true);
+                return newResult;
+            }
             else if (HasSniperRifle(client))
+            {
+                SetPlayerReady(client, true);
                 return action.Done("Start lurking");
+            }
             else
-                return action.ChangeTo(CTFBotMoveToFront(), "Skip upgrades; Move to front");
+            {
+                ActionResult newResult = action.ChangeTo(CTFBotMoveToFront(), "Skip upgrades; Move to front");
+                SetPlayerReady(client, true);
+                return newResult;
+            }
         }
         return action.Done("Skipped upgrades (giant robot)");
     }
@@ -998,15 +1027,33 @@ Action GetUpgradePostAction(int client, BehaviorAction action)
             if (GameRules_GetRoundState() == RoundState_BetweenRounds)
             {
                 if (TF2_GetPlayerClass(client) == TFClass_Engineer)
-                    return action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+                {
+                    ActionResult newResult = action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+                    SetPlayerReady(client, true);
+                    return newResult;
+                }
                 else if (TF2_GetPlayerClass(client) == TFClass_Medic)
+                {
+                    SetPlayerReady(client, true);
                     return action.Done("Start heal mission");
+                }
                 else if (TF2_GetPlayerClass(client) == TFClass_Spy)
-                    return action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+                {
+                    ActionResult newResult = action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+                    SetPlayerReady(client, true);
+                    return newResult;
+                }
                 else if (HasSniperRifle(client))
+                {
+                    SetPlayerReady(client, true);
                     return action.Done("Start lurking");
+                }
                 else
-                    return action.ChangeTo(CTFBotMoveToFront(), "Skip upgrades; Move to front");
+                {
+                    ActionResult newResult = action.ChangeTo(CTFBotMoveToFront(), "Skip upgrades; Move to front");
+                    SetPlayerReady(client, true);
+                    return newResult;
+                }
             }
             return action.Done("Skipped upgrades (purchased robot)");
         }
@@ -1014,15 +1061,33 @@ Action GetUpgradePostAction(int client, BehaviorAction action)
         if (GameRules_GetRoundState() == RoundState_BetweenRounds)
         {
             if (TF2_GetPlayerClass(client) == TFClass_Engineer)
-                return action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+            {
+                ActionResult newResult = action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+                SetPlayerReady(client, true);
+                return newResult;
+            }
             else if (TF2_GetPlayerClass(client) == TFClass_Medic)
+            {
+                SetPlayerReady(client, true);
                 return action.Done("Start heal mission");
+            }
             else if (TF2_GetPlayerClass(client) == TFClass_Spy)
-                return action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+            {
+                ActionResult newResult = action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+                SetPlayerReady(client, true);
+                return newResult;
+            }
             else if (HasSniperRifle(client))
+            {
+                SetPlayerReady(client, true);
                 return action.Done("Start lurking");
+            }
             else
-                return action.ChangeTo(CTFBotMoveToFront(), "Finished upgrading; Move to front and press F4");
+            {
+                ActionResult newResult = action.ChangeTo(CTFBotMoveToFront(), "Finished upgrading; Move to front and press F4");
+                SetPlayerReady(client, true);
+                return newResult;
+            }
         }
         
         return action.Done("I finished upgrading");
@@ -1031,15 +1096,33 @@ Action GetUpgradePostAction(int client, BehaviorAction action)
     if (GameRules_GetRoundState() == RoundState_BetweenRounds)
     {
         if (TF2_GetPlayerClass(client) == TFClass_Engineer)
-            return action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+        {
+            ActionResult newResult = action.ChangeTo(CTFBotMvMEngineerIdle(), "Start building");
+            SetPlayerReady(client, true);
+            return newResult;
+        }
         else if (TF2_GetPlayerClass(client) == TFClass_Medic)
+        {
+            SetPlayerReady(client, true);
             return action.Done("Start heal mission");
+        }
         else if (TF2_GetPlayerClass(client) == TFClass_Spy)
-            return action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+        {
+            ActionResult newResult = action.ChangeTo(CTFBotSpyLurkMvM(), "Start spy lurking");
+            SetPlayerReady(client, true);
+            return newResult;
+        }
         else if (HasSniperRifle(client))
+        {
+            SetPlayerReady(client, true);
             return action.Done("Start lurking");
+        }
         else
-            return action.ChangeTo(CTFBotMoveToFront(), "Finished upgrading; Move to front and press F4");
+        {
+            ActionResult newResult = action.ChangeTo(CTFBotMoveToFront(), "Finished upgrading; Move to front and press F4");
+            SetPlayerReady(client, true);
+            return newResult;
+        }
     }
     
     return action.Done("I finished upgrading");

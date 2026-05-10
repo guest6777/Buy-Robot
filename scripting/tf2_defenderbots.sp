@@ -2434,7 +2434,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
         case BOT_LINEUP_MODE_RANDOM:
         {
             for (int i = 1; i <= newBotsToAdd; i++)
-                g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(TFClass_Scout, TFClass_Engineer)]);
+                g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(view_as<int>(TFClass_Scout), view_as<int>(TFClass_Engineer))]);
         }
         case BOT_LINEUP_MODE_PREFERENCE, BOT_LINEUP_MODE_PREFERENCE_CHOOSE:
         {
@@ -2455,7 +2455,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
             else
             {
                 for (int i = 1; i <= newBotsToAdd; i++)
-                    g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(TFClass_Scout, TFClass_Engineer)]);
+                    g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(view_as<int>(TFClass_Scout), view_as<int>(TFClass_Engineer))]);
             }
             
             delete adtClassPref;
