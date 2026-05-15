@@ -2256,7 +2256,7 @@ void AddToWaitingQueue(int buyer, const char[] class, int lives, const char[] pr
     
     if (g_hWaitingQueue.Length == 1)
     {
-        CreateTimer(3.0, Timer_ProcessWaitingQueue, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(3.0, Timer_ProcessWaitingQueue, _, TIMER_FLAG_NO_MAPCHANGE);
     }
 }
 
@@ -2309,8 +2309,6 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
     if (GameRules_GetRoundState() != RoundState_RoundRunning)
         return Plugin_Continue;
     
-    int processed = 0;
-    
     for (int i = 0; i < g_hWaitingQueue.Length; i++)
     {
         char data[256];
@@ -2331,9 +2329,14 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
         
         int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
         int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+        int availableSlots = maxBots - currentBots;
         
-        if (currentBots + botCount <= maxBots)
+        if (availableSlots > 0)
         {
+            int canSpawn = availableSlots;
+            if (canSpawn > botCount)
+                canSpawn = botCount;
+            
             g_hWaitingQueue.Erase(i);
             i--;
             
@@ -2341,9 +2344,17 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
             
             if (buyer > 0 && IsClientInGame(buyer))
             {
-                for (int j = 0; j < botCount; j++)
+                for (int j = 0; j < canSpawn; j++)
                 {
                     BuyRobot_CreateBot(class, buyer, lives, prefix, false, team, primaryWeapon, secondaryWeapon, meleeWeapon);
+                }
+                
+                if (canSpawn < botCount)
+                {
+                    char newData[256];
+                    Format(newData, sizeof(newData), "%d|%s|%d|%s|%d|%d|%d|%d|%d|%d|%d", 
+                        buyerId, class, lives, prefix, view_as<int>(team), 0, botCount - canSpawn, 0, primaryWeapon, secondaryWeapon, meleeWeapon);
+                    g_hWaitingQueue.PushString(newData);
                 }
                 
                 char className[32];
@@ -2355,15 +2366,13 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
                 else
                     teamName = "Invaders";
                 
-                PrintToChat(buyer, "\x0732CD32[Buy Robot]\x01 Your %s %s has spawned from the waiting queue!", teamName, className);
+                PrintToChat(buyer, "\x0732CD32[Buy Robot]\x01 Your %s %s has spawned from queue!", teamName, className);
             }
-            
-            processed += botCount;
         }
     }
     
     if (g_hWaitingQueue.Length > 0)
-        return Plugin_Continue;
+        CreateTimer(3.0, Timer_ProcessWaitingQueue, _, TIMER_FLAG_NO_MAPCHANGE);
     
     return Plugin_Stop;
 }
@@ -3704,21 +3713,15 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
     int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
     int maxBots = BuyRobot_GetMaxBotsForTeam(team);
     
-    if (currentBots + botCount > maxBots)
+    if (currentBots >= maxBots)
     {
         int waitingCount = GetWaitingCountForPlayer(client);
+        
         if (waitingCount + botCount > g_cvMaxWaitingQueuePerPlayer.IntValue)
         {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 You already have %d robots in waiting queue (max %d)!", 
-                waitingCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
-            BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
-            return;
-        }
-        
-        if (g_hWaitingQueue.Length + botCount > g_cvMaxWaitingQueueTotal.IntValue)
-        {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Waiting queue is full! Try again later.");
-            BuyRobot_ShowLoadoutMenu(client, class, price, botCount, category, team);
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Team %s is full (%d/%d) and your queue is full (%d/%d)!", 
+                team == TFTeam_Red ? "Mann Co." : "Invaders", currentBots, maxBots, waitingCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+            BuyRobot_ShowMainMenu(client);
             return;
         }
         
@@ -3743,48 +3746,24 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
         
         char className[32];
         BuyRobot_GetClassName(class, className, sizeof(className));
-        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Bot limit reached! %d %s added to waiting queue. (Your queue: %d/%d)", 
-            botCount, className, waitingCount + botCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
         
-        if (g_cvBuyNotifyHumanPurchase.BoolValue)
-        {
-            char teamColor[16];
-            char teamName[16];
-            if (team == TFTeam_Red)
-            {
-                teamColor = "\x07FF4500";
-                teamName = "Mann Co.";
-            }
-            else
-            {
-                teamColor = "\x0742A5F5";
-                teamName = "Invaders";
-            }
-            
-            if (category == BUY_CATEGORY_GIANT)
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! [QUEUED]", 
-                                client, className, teamColor, teamName);
-            }
-            else if (category == BUY_CATEGORY_BOSS)
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x07FF1493Boss %s\x01 robot for %s%s\x01 team! [QUEUED]", 
-                                client, className, teamColor, teamName);
-            }
-            else
-            {
-                PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team! [QUEUED]", 
-                                client, botCount, className, teamColor, teamName);
-            }
-        }
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Team full! %d %s added to queue. (Team: %d/%d, Your queue: %d/%d)", 
+            botCount, className, currentBots, maxBots, waitingCount + botCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
         
         BuyRobot_ShowMainMenu(client);
         return;
     }
     
+    int remainingSlots = maxBots - currentBots;
+    int canSpawnNow = remainingSlots;
+    if (canSpawnNow > botCount)
+        canSpawnNow = botCount;
+    int goToQueue = botCount - canSpawnNow;
+    
     g_iBuyPlayerPoints[client] -= price;
     BuyRobot_SavePlayerPoints(client);
     BuyRobot_SaveAllPoints();
+    
     int lives = (category == BUY_CATEGORY_GIANT || category == BUY_CATEGORY_BOSS) ? 1 : g_cvBuyDefaultLives.IntValue;
     
     char namePrefix[32];
@@ -3795,29 +3774,44 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
     else
         namePrefix[0] = '\0';
     
-    for (int i = 0; i < botCount; i++)
+    for (int i = 0; i < canSpawnNow; i++)
     {
         BuyRobot_CreateBot(class, client, lives, namePrefix, false, team, g_iTempLoadoutPrimary[client], g_iTempLoadoutSecondary[client], g_iTempLoadoutMelee[client]);
+    }
+    
+    if (goToQueue > 0)
+    {
+        for (int i = 0; i < goToQueue; i++)
+        {
+            AddToWaitingQueue(client, class, lives, namePrefix, team, price, 1, category, g_iTempLoadoutPrimary[client], g_iTempLoadoutSecondary[client], g_iTempLoadoutMelee[client]);
+        }
+        
+        int waitingCount = GetWaitingCountForPlayer(client);
+        char className[32];
+        BuyRobot_GetClassName(class, className, sizeof(className));
+        
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Team partially full! %d %s spawned, %d added to queue. (Team: %d/%d, Your queue: %d/%d)", 
+            canSpawnNow, className, goToQueue, currentBots + canSpawnNow, maxBots, waitingCount + goToQueue, g_cvMaxWaitingQueuePerPlayer.IntValue);
     }
     
     char className[32];
     BuyRobot_GetClassName(class, className, sizeof(className));
     
-    if (g_cvBuyNotifyHumanPurchase.BoolValue)
+    char teamColor[16];
+    char teamName[16];
+    if (team == TFTeam_Red)
     {
-        char teamColor[16];
-        char teamName[16];
-        if (team == TFTeam_Red)
-        {
-            teamColor = "\x07FF4500";
-            teamName = "Mann Co.";
-        }
-        else
-        {
-            teamColor = "\x0742A5F5";
-            teamName = "Invaders";
-        }
-        
+        teamColor = "\x07FF4500";
+        teamName = "Mann Co.";
+    }
+    else
+    {
+        teamColor = "\x0742A5F5";
+        teamName = "Invaders";
+    }
+    
+    if (canSpawnNow > 0 && g_cvBuyNotifyHumanPurchase.BoolValue)
+    {
         if (category == BUY_CATEGORY_GIANT)
         {
             PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought a \x078B008BGiant %s\x01 robot for %s%s\x01 team! (\x07FFD700%d\x01 points)", 
@@ -3831,7 +3825,7 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
         else
         {
             PrintToChatAll("\x0732CD32[Buy Robot]\x01 \x07FFD700%N\x01 bought \x07FFD700%d %s\x01 robot(s) for %s%s\x01 team!", 
-                            client, botCount, className, teamColor, teamName);
+                            client, canSpawnNow, className, teamColor, teamName);
         }
     }
     
@@ -5589,84 +5583,67 @@ void CheckAndSendSaxtonHale()
     if (maxDefenders <= 0)
         return;
     
-    int currentDefenders = 0;
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Red && IsPlayerAlive(i))
-            currentDefenders++;
-    }
-    
-    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+    int maxBots = g_cvBuyMaxBotsRed.IntValue;
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availablePurchaseSlots = maxBots - currentBots;
     
     if (availablePurchaseSlots <= 0)
         return;
     
-    int enemyCount = 0;
-    int enemyGiantCount = 0;
-    int enemyBossCount = 0;
+    int blueStrength = 0;
+    int blueGiantCount = 0;
+    int blueBossCount = 0;
+    int redStrength = 0;
     int redGiantCount = 0;
     int redBossCount = 0;
-    int humanCount = 0;
-    int defenderCount = 0;
     
     for (int i = 1; i <= MaxClients; i++)
     {
         if (!IsClientInGame(i))
             continue;
         
+        if (!IsPlayerAlive(i))
+            continue;
+        
         int team = view_as<int>(TF2_GetClientTeam(i));
         
         if (team == view_as<int>(TFTeam_Blue))
         {
-            if (IsPlayerAlive(i))
+            blueStrength++;
+            if (TF2_IsMiniBoss(i))
             {
-                enemyCount++;
-                if (TF2_IsMiniBoss(i))
-                {
-                    char name[64];
-                    GetClientName(i, name, sizeof(name));
-                    if (StrContains(name, "Boss") != -1)
-                        enemyBossCount++;
-                    else
-                        enemyGiantCount++;
-                }
+                char name[64];
+                GetClientName(i, name, sizeof(name));
+                if (StrContains(name, "Boss") != -1)
+                    blueBossCount++;
+                else
+                    blueGiantCount++;
             }
         }
         else if (team == view_as<int>(TFTeam_Red))
         {
-            if (IsFakeClient(i) && g_bBuyIsPurchasedRobot[i])
+            redStrength++;
+            if (TF2_IsMiniBoss(i))
             {
                 char name[64];
                 GetClientName(i, name, sizeof(name));
                 if (StrContains(name, "Boss") != -1)
                     redBossCount++;
-                else if (StrContains(name, "Giant") != -1)
+                else
                     redGiantCount++;
-            }
-            else if (IsFakeClient(i) && g_bIsDefenderBot[i] && !g_bBuyIsPurchasedRobot[i])
-            {
-                defenderCount++;
-            }
-            else if (!IsFakeClient(i))
-            {
-                humanCount++;
             }
         }
     }
     
-    int totalRed = humanCount + defenderCount + redGiantCount + redBossCount;
-    
-    if (totalRed >= enemyCount)
+    if (redStrength >= blueStrength)
         return;
     
-    int shortage = enemyCount - totalRed;
+    int shortage = blueStrength - redStrength;
     if (shortage < 1)
         return;
     
-    int giantsNeeded = enemyGiantCount - redGiantCount;
-    int bossesNeeded = enemyBossCount - redBossCount;
+    int giantsNeeded = blueGiantCount - redGiantCount;
+    int bossesNeeded = blueBossCount - redBossCount;
     
     if (giantsNeeded < 0) giantsNeeded = 0;
     if (bossesNeeded < 0) bossesNeeded = 0;
@@ -5679,7 +5656,9 @@ void CheckAndSendSaxtonHale()
     
     int botsToAdd = shortage;
     if (botsToAdd < 2) botsToAdd = 2;
-    if (botsToAdd > availablePurchaseSlots) botsToAdd = availablePurchaseSlots;
+    
+    if (botsToAdd > availablePurchaseSlots)
+        botsToAdd = availablePurchaseSlots;
     
     if (giantsNeeded > botsToAdd) giantsNeeded = botsToAdd;
     if (bossesNeeded > botsToAdd - giantsNeeded) bossesNeeded = botsToAdd - giantsNeeded;
@@ -5697,7 +5676,7 @@ void CheckAndSendSaxtonHale()
 
 void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+    int maxBots = g_cvBuyMaxBotsRed.IntValue;
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availableSlots = maxBots - currentBots;
     
@@ -5857,17 +5836,17 @@ void CheckAndSendGrayMann()
     if (availableSlots <= 0)
         return;
     
-    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+    int maxBots = g_cvBuyMaxBotsBlue.IntValue;
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availablePurchaseSlots = maxBots - currentBots;
     
     if (availablePurchaseSlots <= 0)
         return;
     
-    int redCount = 0;
+    int redStrength = 0;
     int redGiantCount = 0;
     int redBossCount = 0;
-    int blueCount = 0;
+    int blueStrength = 0;
     int blueGiantCount = 0;
     int blueBossCount = 0;
     
@@ -5876,48 +5855,43 @@ void CheckAndSendGrayMann()
         if (!IsClientInGame(i))
             continue;
         
+        if (!IsPlayerAlive(i))
+            continue;
+        
         int team = view_as<int>(TF2_GetClientTeam(i));
         
         if (team == view_as<int>(TFTeam_Red))
         {
-            if (IsPlayerAlive(i))
+            redStrength++;
+            if (TF2_IsMiniBoss(i))
             {
-                redCount++;
-                if (TF2_IsMiniBoss(i))
-                {
-                    char name[64];
-                    GetClientName(i, name, sizeof(name));
-                    if (StrContains(name, "Boss") != -1)
-                        redBossCount++;
-                    else
-                        redGiantCount++;
-                }
+                char name[64];
+                GetClientName(i, name, sizeof(name));
+                if (StrContains(name, "Boss") != -1)
+                    redBossCount++;
+                else
+                    redGiantCount++;
             }
         }
         else if (team == view_as<int>(TFTeam_Blue))
         {
-            if (IsPlayerAlive(i))
+            blueStrength++;
+            if (g_bBuyIsPurchasedRobot[i] && TF2_IsMiniBoss(i))
             {
-                blueCount++;
-                if (g_bBuyIsPurchasedRobot[i] && TF2_IsMiniBoss(i))
-                {
-                    char name[64];
-                    GetClientName(i, name, sizeof(name));
-                    if (StrContains(name, "Boss") != -1)
-                        blueBossCount++;
-                    else if (StrContains(name, "Giant") != -1)
-                        blueGiantCount++;
-                }
+                char name[64];
+                GetClientName(i, name, sizeof(name));
+                if (StrContains(name, "Boss") != -1)
+                    blueBossCount++;
+                else if (StrContains(name, "Giant") != -1)
+                    blueGiantCount++;
             }
         }
     }
     
-    int totalBlue = blueCount + blueGiantCount + blueBossCount;
-    
-    if (totalBlue >= redCount)
+    if (blueStrength >= redStrength)
         return;
     
-    int shortage = redCount - totalBlue;
+    int shortage = redStrength - blueStrength;
     if (shortage < 1)
         return;
     
@@ -5935,8 +5909,12 @@ void CheckAndSendGrayMann()
     
     int botsToAdd = shortage;
     if (botsToAdd < 2) botsToAdd = 2;
-    if (botsToAdd > availablePurchaseSlots) botsToAdd = availablePurchaseSlots;
-    if (botsToAdd > availableSlots) botsToAdd = availableSlots;
+    
+    if (botsToAdd > availableSlots)
+        botsToAdd = availableSlots;
+    
+    if (botsToAdd > availablePurchaseSlots)
+        botsToAdd = availablePurchaseSlots;
     
     if (giantsNeeded > botsToAdd) giantsNeeded = botsToAdd;
     if (bossesNeeded > botsToAdd - giantsNeeded) bossesNeeded = botsToAdd - giantsNeeded;
@@ -5954,7 +5932,7 @@ void CheckAndSendGrayMann()
 
 void SendGrayMann(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+    int maxBots = g_cvBuyMaxBotsBlue.IntValue;
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availableSlots = maxBots - currentBots;
     
