@@ -1,7 +1,8 @@
 #include "loadouts.sp"
 
 ConVar g_cvBuyEnable;
-ConVar g_cvBuyMaxBots;
+ConVar g_cvBuyMaxBotsRed;
+ConVar g_cvBuyMaxBotsBlue;
 ConVar g_cvBuyPointsPerKill;
 ConVar g_cvBuyRobotSounds;
 ConVar g_cvBuyRobotFootsteps;
@@ -51,7 +52,6 @@ int g_iWaveBonusCounter = 0;
 int g_iWaveFailCounterTick;
 float g_flLastSendTime2 = 0.0;
 int g_iWaveBonusCounter2 = 0;
-float g_flLastAnySendTime = 0.0;
 
 int g_iBuyPlayerPoints[MAXPLAYERS + 1];
 int g_iBuyRobotLives[MAXPLAYERS + 1];
@@ -388,7 +388,8 @@ void BuyRobot_Init()
     g_hWaitingQueue = new ArrayList(256);
     
     g_cvBuyEnable = CreateConVar("sm_buyrobot_enable", "1", "Enable buying robots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_cvBuyMaxBots = CreateConVar("sm_buyrobot_maxbots", "10", "Maximum purchased bots", FCVAR_NOTIFY, true, 1.0, true, 100.0);
+    g_cvBuyMaxBotsRed = CreateConVar("sm_buyrobot_maxbots_red", "10", "Maximum purchased robots for RED team (Mann Co.)", FCVAR_NOTIFY, true, 1.0, true, 100.0);
+    g_cvBuyMaxBotsBlue = CreateConVar("sm_buyrobot_maxbots_blue", "10", "Maximum purchased robots for BLUE team (Invaders)", FCVAR_NOTIFY, true, 1.0, true, 100.0);
     g_cvBuyPointsPerKill = CreateConVar("sm_buyrobot_points_per_kill", "3", "Points gained for killing", FCVAR_NOTIFY, true, 1.0, true, 100.0);
     g_cvBuyRobotSounds = CreateConVar("sm_buyrobot_sounds", "1", "Enable robot sounds", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvBuyRobotFootsteps = CreateConVar("sm_buyrobot_footsteps", "1", "Enable robot footstep sounds", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -411,7 +412,7 @@ void BuyRobot_Init()
     g_cvBuySaxtonDelay = CreateConVar("sm_buyrobot_saxton_delay", "20.0", "Delay in seconds between Saxton Hale AI reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
     g_cvBuyRemoveUnitsBots = CreateConVar("sm_buyrobot_remove_units_bots", "1", "Remove Saxton Hale AI bots when wave completes or fails", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_cvGrayMannAI = CreateConVar("sm_buyrobot_gray_mann_ai", "0", "Enable Gray Mann AI to send reinforcements based on team strength (Invaders)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_cvGrayMannDelay = CreateConVar("sm_buyrobot_gray_mann_delay", "20.0", "Delay in seconds between Gray Mann reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
+    g_cvGrayMannDelay = CreateConVar("sm_buyrobot_gray_mann_delay", "23.0", "Delay in seconds between Gray Mann reinforcements", FCVAR_NOTIFY, true, 1.0, true, 120.0);
     g_cvMaxBossPerTeam = CreateConVar("sm_buyrobot_max_boss_per_team", "1", "Maximum Boss robots allowed per team", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     g_cvMaxWaitingQueueTotal = CreateConVar("sm_buyrobot_max_queue_total", "50", "Maximum total robots in waiting queue", FCVAR_NOTIFY, true, 1.0, true, 100.0);
     g_cvMaxWaitingQueuePerPlayer = CreateConVar("sm_buyrobot_max_queue_per_player", "5", "Maximum robots per player in waiting queue", FCVAR_NOTIFY, true, 1.0, true, 100.0);
@@ -2308,16 +2309,9 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
     if (GameRules_GetRoundState() != RoundState_RoundRunning)
         return Plugin_Continue;
     
-    int currentBots = BuyRobot_GetPurchasedCount();
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    
-    if (currentBots >= maxBots)
-        return Plugin_Continue;
-    
-    int slotsAvailable = maxBots - currentBots;
     int processed = 0;
     
-    for (int i = 0; i < g_hWaitingQueue.Length && processed < slotsAvailable; i++)
+    for (int i = 0; i < g_hWaitingQueue.Length; i++)
     {
         char data[256];
         g_hWaitingQueue.GetString(i, data, sizeof(data));
@@ -2335,6 +2329,9 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
         int secondaryWeapon = StringToInt(parts[9]);
         int meleeWeapon = StringToInt(parts[10]);
         
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+        int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+        
         if (currentBots + botCount <= maxBots)
         {
             g_hWaitingQueue.Erase(i);
@@ -2351,10 +2348,16 @@ public Action Timer_ProcessWaitingQueue(Handle timer)
                 
                 char className[32];
                 BuyRobot_GetClassName(class, className, sizeof(className));
-                PrintToChat(buyer, "\x0732CD32[Buy Robot]\x01 Your %s has spawned from the waiting queue!", className);
+                
+                char teamName[32];
+                if (team == TFTeam_Red)
+                    teamName = "Mann Co.";
+                else
+                    teamName = "Invaders";
+                
+                PrintToChat(buyer, "\x0732CD32[Buy Robot]\x01 Your %s %s has spawned from the waiting queue!", teamName, className);
             }
             
-            currentBots += botCount;
             processed += botCount;
         }
     }
@@ -2378,12 +2381,35 @@ public Action Command_ShowQueue(int client, int args)
     
     int userQueueCount = GetWaitingCountForPlayer(client);
     int totalQueue = g_hWaitingQueue.Length;
-    int currentBots = BuyRobot_GetPurchasedCount();
-    int maxBots = g_cvBuyMaxBots.IntValue;
     
-    PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Bots: %d/%d | Queue: %d total | Your queue: %d/%d", 
-        currentBots, maxBots, totalQueue, userQueueCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
-    PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Use !cancelqueue to remove your waiting robots.");
+    TFTeam clientTeam = TF2_GetClientTeam(client);
+    
+    if (clientTeam == TFTeam_Red)
+    {
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+        int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+        
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 \x07FF4500Mann Co.\x01 Bots: \x07FFD700%d/%d\x01 | Queue: \x07FFD700%d\x01 total | Your queue: \x07FFD700%d/%d\x01", 
+            currentBots, maxBots, totalQueue, userQueueCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+    }
+    else if (clientTeam == TFTeam_Blue)
+    {
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
+        int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+        
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 \x0742A5F5Invaders\x01 Bots: \x07FFD700%d/%d\x01 | Queue: \x07FFD700%d\x01 total | Your queue: \x07FFD700%d/%d\x01", 
+            currentBots, maxBots, totalQueue, userQueueCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+    }
+    else
+    {
+        int currentBots = BuyRobot_GetPurchasedCount();
+        int maxBots = g_cvBuyMaxBotsRed.IntValue + g_cvBuyMaxBotsBlue.IntValue;
+        
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Total Bots: \x07FFD700%d/%d\x01 | Queue: \x07FFD700%d\x01 total | Your queue: \x07FFD700%d/%d\x01", 
+            currentBots, maxBots, totalQueue, userQueueCount, g_cvMaxWaitingQueuePerPlayer.IntValue);
+    }
+    
+    PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Use \x07FFD700!cancelqueue\x01 to remove your waiting robots.");
     
     return Plugin_Handled;
 }
@@ -2592,13 +2618,18 @@ public Action Command_ServerInfo(int client, int args)
     
     menu.AddItem("", " ", ITEMDRAW_DISABLED);
     
+    int redMaxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+    int blueMaxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+    int redCurrentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+    int blueCurrentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
+    
     Format(info, sizeof(info), "=== Mann Co. (RED): %d Total ===", totalRed);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     Format(info, sizeof(info), "  Humans: %d", redHumans);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     Format(info, sizeof(info), "  Defender Bots: %d", redDefenderBots);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
-    Format(info, sizeof(info), "  Purchased Bots: %d", redBuyBots);
+    Format(info, sizeof(info), "  Purchased Bots: %d/%d", redCurrentBots, redMaxBots);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     
     menu.AddItem("", " ", ITEMDRAW_DISABLED);
@@ -2607,7 +2638,7 @@ public Action Command_ServerInfo(int client, int args)
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     Format(info, sizeof(info), "  Humans: %d", blueHumans);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
-    Format(info, sizeof(info), "  Purchased Bots: %d", blueBuyBots);
+    Format(info, sizeof(info), "  Purchased Bots: %d/%d", blueCurrentBots, blueMaxBots);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     Format(info, sizeof(info), "  MvM Bots: %d", blueMvMBots);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
@@ -2632,7 +2663,7 @@ public Action Command_ServerInfo(int client, int args)
     
     Format(info, sizeof(info), "=== Buy Robot Config ===");
     menu.AddItem("", info, ITEMDRAW_DISABLED);
-    Format(info, sizeof(info), "Shop: %s | Max Bots: %d", g_cvBuyEnable.BoolValue ? "ON" : "OFF", g_cvBuyMaxBots.IntValue);
+    Format(info, sizeof(info), "Shop: %s | RED Max: %d | BLUE Max: %d", g_cvBuyEnable.BoolValue ? "ON" : "OFF", redMaxBots, blueMaxBots);
     menu.AddItem("", info, ITEMDRAW_DISABLED);
     Format(info, sizeof(info), "Custom Loadouts: %s", g_cvBuyUseCustomLoadouts.BoolValue ? "ON" : "OFF");
     menu.AddItem("", info, ITEMDRAW_DISABLED);
@@ -2677,48 +2708,99 @@ public int MenuHandler_ServerInfo(Menu menu, MenuAction action, int param1, int 
 
 public Action BuyRobot_ShopStatus(int client, int args)
 {
-    if (IsValidClientIndex(client))
+    if (!IsValidClientIndex(client))
+        return Plugin_Handled;
+    
+    TFTeam team = TF2_GetClientTeam(client);
+    
+    if (team == TFTeam_Spectator)
     {
-        if (!g_cvBuyKickOnWaveEnd.BoolValue)
-        {
-            int count = BuyRobot_GetPurchasedCount();
-            int max = g_cvBuyMaxBots.IntValue;
-            int remaining = max - count;
-            
-            char slotColor[32];
-            GetSlotColor(remaining, max, slotColor, sizeof(slotColor));
-            
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Robots: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", count, max, slotColor, remaining);
-            
-            if (IsFakeClient(client) && g_bIsDefenderBot[client] && !g_bBuyIsPurchasedRobot[client])
-            {
-                int owned = BuyRobot_CountOwnedBots(client);
-                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Your robots: \x07FFD700%d/%d", owned, g_cvBuyMaxPerBot.IntValue);
-            }
-            return Plugin_Handled;
-        }
+        int redCount = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+        int redMax = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+        int blueCount = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
+        int blueMax = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
         
-        if (GameRules_GetRoundState() != RoundState_RoundRunning)
-        {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Shop is only available during the wave!");
-            return Plugin_Handled;
-        }
+        char redSlotColor[32];
+        char blueSlotColor[32];
+        GetSlotColor(redMax - redCount, redMax, redSlotColor, sizeof(redSlotColor));
+        GetSlotColor(blueMax - blueCount, blueMax, blueSlotColor, sizeof(blueSlotColor));
         
-        int count = BuyRobot_GetPurchasedCount();
-        int max = g_cvBuyMaxBots.IntValue;
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 \x07FF4500Mann Co. (RED)\x01: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", 
+            redCount, redMax, redSlotColor, redMax - redCount);
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 \x0742A5F5Invaders (BLUE)\x01: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", 
+            blueCount, blueMax, blueSlotColor, blueMax - blueCount);
+        
+        return Plugin_Handled;
+    }
+    
+    if (!g_cvBuyKickOnWaveEnd.BoolValue)
+    {
+        int count = BuyRobot_GetPurchasedCountForTeam(team);
+        int max = BuyRobot_GetMaxBotsForTeam(team);
         int remaining = max - count;
         
         char slotColor[32];
         GetSlotColor(remaining, max, slotColor, sizeof(slotColor));
         
-        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Robots: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", count, max, slotColor, remaining);
+        char teamName[32];
+        char teamColor[8];
+        if (team == TFTeam_Red)
+        {
+            teamName = "Mann Co.";
+            teamColor = "\x07FF4500";
+        }
+        else
+        {
+            teamName = "Invaders";
+            teamColor = "\x0742A5F5";
+        }
+        
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 %s%s\x01 Team Robots: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", 
+            teamColor, teamName, count, max, slotColor, remaining);
         
         if (IsFakeClient(client) && g_bIsDefenderBot[client] && !g_bBuyIsPurchasedRobot[client])
         {
             int owned = BuyRobot_CountOwnedBots(client);
             PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Your robots: \x07FFD700%d/%d", owned, g_cvBuyMaxPerBot.IntValue);
         }
+        return Plugin_Handled;
     }
+    
+    if (GameRules_GetRoundState() != RoundState_RoundRunning)
+    {
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Shop is only available during the wave!");
+        return Plugin_Handled;
+    }
+    
+    int count = BuyRobot_GetPurchasedCountForTeam(team);
+    int max = BuyRobot_GetMaxBotsForTeam(team);
+    int remaining = max - count;
+    
+    char slotColor[32];
+    GetSlotColor(remaining, max, slotColor, sizeof(slotColor));
+    
+    char teamName[32];
+    char teamColor[8];
+    if (team == TFTeam_Red)
+    {
+        teamName = "Mann Co.";
+        teamColor = "\x07FF4500";
+    }
+    else
+    {
+        teamName = "Invaders";
+        teamColor = "\x0742A5F5";
+    }
+    
+    PrintToChat(client, "\x0732CD32[Buy Robot]\x01 %s%s\x01 Team Robots: \x07FFD700%d/%d\x01 (%s%d\x01 slots left)", 
+        teamColor, teamName, count, max, slotColor, remaining);
+    
+    if (IsFakeClient(client) && g_bIsDefenderBot[client] && !g_bBuyIsPurchasedRobot[client])
+    {
+        int owned = BuyRobot_CountOwnedBots(client);
+        PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Your robots: \x07FFD700%d/%d", owned, g_cvBuyMaxPerBot.IntValue);
+    }
+    
     return Plugin_Handled;
 }
 
@@ -2835,8 +2917,9 @@ public Action Command_ResetPointsData(int client, int args)
 void BuyRobot_ShowMainMenu(int client)
 {
     Menu menu = new Menu(BuyRobot_MenuMainHandler);
-    int currentBots = BuyRobot_GetPurchasedCount();
-    int maxBots = g_cvBuyMaxBots.IntValue;
+    TFTeam team = TF2_GetClientTeam(client);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+    int maxBots = BuyRobot_GetMaxBotsForTeam(team);
     
     menu.SetTitle("Robot Shop\nPoints: %d\nRobots: %d/%d\n ", g_iBuyPlayerPoints[client], currentBots, maxBots);
     menu.AddItem("single", "Single Robot");
@@ -2872,8 +2955,8 @@ public int BuyRobot_MenuMainHandler(Menu menu, MenuAction action, int param1, in
 void BuyRobot_ShowClassMenu(int client, int category, TFTeam team)
 {
     int points = g_iBuyPlayerPoints[client];
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = BuyRobot_GetPurchasedCount();
+    int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
     int remainingSlots = maxBots - currentBots;
     
     if (category == BUY_CATEGORY_BOSS)
@@ -3618,8 +3701,8 @@ void BuyRobot_ConfirmPurchase(int client, const char[] class, int price, int bot
         return;
     }
     
-    int currentBots = BuyRobot_GetPurchasedCount();
-    int maxBots = g_cvBuyMaxBots.IntValue;
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+    int maxBots = BuyRobot_GetMaxBotsForTeam(team);
     
     if (currentBots + botCount > maxBots)
     {
@@ -4208,12 +4291,12 @@ public Action Timer_ApplyGiantStats(Handle timer, int userid)
             forceReduct = 0.5;
             airblastVuln = 0.5;
             footstep = 3.0;
-            TF2Attrib_SetByName(client, "engy building health bonus", 6.6);
+            TF2Attrib_SetByName(client, "engy building health bonus", 8.0);
             TF2Attrib_SetByName(client, "construction rate increased", 5.0);
             TF2Attrib_SetByName(client, "engy sentry damage bonus", 2.0);
             TF2Attrib_SetByName(client, "engy dispenser radius increased", 7.0);
-            TF2Attrib_SetByName(client, "engy sentry radius increased", 2.5);
-            TF2Attrib_SetByName(client, "repair rate increased", 3.0);
+            TF2Attrib_SetByName(client, "engy sentry radius increased", 2.0);
+            TF2Attrib_SetByName(client, "repair rate increased", 1.5);
         }
         case TFClass_Spy:
         {
@@ -4386,12 +4469,12 @@ public Action Timer_ApplyBossStats(Handle timer, int userid)
             forceReduct = 0.5;
             airblastVuln = 0.5;
             footstep = 3.0;
-            TF2Attrib_SetByName(client, "engy building health bonus", 11.0);
+            TF2Attrib_SetByName(client, "engy building health bonus", 15.0);
             TF2Attrib_SetByName(client, "construction rate increased", 9.0);
             TF2Attrib_SetByName(client, "engy sentry damage bonus", 3.6);
-            TF2Attrib_SetByName(client, "engy dispenser radius increased", 10.0);
-            TF2Attrib_SetByName(client, "engy sentry radius increased", 3.2);
-            TF2Attrib_SetByName(client, "repair rate increased", 5.0);
+            TF2Attrib_SetByName(client, "engy dispenser radius increased", 7.0);
+            TF2Attrib_SetByName(client, "engy sentry radius increased", 2.0);
+            TF2Attrib_SetByName(client, "repair rate increased", 1.5);
         }
         case TFClass_Spy:
         {
@@ -5513,8 +5596,8 @@ void CheckAndSendSaxtonHale()
             currentDefenders++;
     }
     
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = GetTotalBotsCount();
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availablePurchaseSlots = maxBots - currentBots;
     
     if (availablePurchaseSlots <= 0)
@@ -5604,19 +5687,18 @@ void CheckAndSendSaxtonHale()
     float currentTime = GetGameTime();
     float delay = g_cvBuySaxtonDelay.FloatValue;
     
-    if (currentTime - g_flLastSendTime >= delay && currentTime - g_flLastAnySendTime >= 1.0 && botsToAdd > 0)
+    if (currentTime - g_flLastSendTime >= delay && botsToAdd > 0)
     {
         SendSaxtonHale(botsToAdd, giantsNeeded, bossesNeeded);
         g_flLastSendTime = currentTime;
-        g_flLastAnySendTime = currentTime;
         g_iWaveBonusCounter++;
     }
 }
 
 void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = GetTotalBotsCount();
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availableSlots = maxBots - currentBots;
     
     if (availableSlots <= 0)
@@ -5775,8 +5857,8 @@ void CheckAndSendGrayMann()
     if (availableSlots <= 0)
         return;
     
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = GetTotalBotsCount();
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availablePurchaseSlots = maxBots - currentBots;
     
     if (availablePurchaseSlots <= 0)
@@ -5862,19 +5944,18 @@ void CheckAndSendGrayMann()
     float currentTime = GetGameTime();
     float delay = g_cvGrayMannDelay.FloatValue;
     
-    if (currentTime - g_flLastSendTime2 >= delay && currentTime - g_flLastAnySendTime >= 1.0 && botsToAdd > 0)
+    if (currentTime - g_flLastSendTime2 >= delay && botsToAdd > 0)
     {
         SendGrayMann(botsToAdd, giantsNeeded, bossesNeeded);
         g_flLastSendTime2 = currentTime;
-        g_flLastAnySendTime = currentTime;
         g_iWaveBonusCounter2++;
     }
 }
 
 void SendGrayMann(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = GetTotalBotsCount();
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availableSlots = maxBots - currentBots;
     
     if (availableSlots <= 0)
@@ -6026,7 +6107,6 @@ public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcas
     fLastWaveBeginTime = GetGameTime();
     g_flLastSendTime = GetGameTime();
     g_flLastSendTime2 = GetGameTime();
-    g_flLastAnySendTime = GetGameTime();
     
     CreateTimer(10.0, BuyRobot_ResetWaveBeginFlag);
     
@@ -6059,8 +6139,8 @@ public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcas
     
     if (g_cvBuyWaveBonusEnable.BoolValue)
     {
-        int currentBots = BuyRobot_GetPurchasedCount();
-        int maxBots = g_cvBuyMaxBots.IntValue;
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+        int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
         
         if (currentBots >= maxBots)
         {
@@ -6260,26 +6340,25 @@ public Action BuyRobot_AutoBuy(Handle timer)
         return Plugin_Continue;
     }
     
-    int currentBots = BuyRobot_GetPurchasedCount();
-    if (currentBots >= g_cvBuyMaxBots.IntValue) 
-    {
-        return Plugin_Continue;
-    }
-    
-    float interval = g_cvBuyInterval.FloatValue;
-    int maxOwned = g_cvBuyMaxPerBot.IntValue;
-    
     for (int i = 1; i <= MaxClients; i++)
     {
         if (!IsValidClientIndex(i) || !IsFakeClient(i)) continue;
         
         if (!g_bIsDefenderBot[i] || g_bBuyIsPurchasedRobot[i]) continue;
         
-        if (TF2_GetClientTeam(i) != TFTeam_Red || !IsPlayerAlive(i)) continue;
-        if (GetGameTime() - g_flBuyLastBotBuyTime[i] < interval) continue;
+        TFTeam team = TF2_GetClientTeam(i);
+        if (team != TFTeam_Red) continue;
+        
+        if (!IsPlayerAlive(i)) continue;
+        if (GetGameTime() - g_flBuyLastBotBuyTime[i] < g_cvBuyInterval.FloatValue) continue;
         
         int ownedBots = BuyRobot_CountOwnedBots(i);
-        if (ownedBots >= maxOwned) continue;
+        if (ownedBots >= g_cvBuyMaxPerBot.IntValue) continue;
+        
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+        int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+        
+        if (currentBots >= maxBots) continue;
         
         int points = g_iBuyPlayerPoints[i];
         
@@ -6338,6 +6417,16 @@ void BuyRobot_DoBotBuy(int bot, int category)
     char prefix[32];
     TFTeam team = TFTeam_Red;
     
+    int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+    int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+    
+    if (currentBots >= maxBots)
+    {
+        if (redbots_manager_debug.BoolValue)
+            PrintToChatAll("[BuyRobot_DoBotBuy] Team RED at max capacity (%d/%d)", currentBots, maxBots);
+        return;
+    }
+    
     if (category == BUY_CATEGORY_BOSS)
     {
         int bossCount = GetCurrentBossCountForTeam(team);
@@ -6373,9 +6462,16 @@ void BuyRobot_DoBotBuy(int bot, int category)
         strcopy(prefix, sizeof(prefix), "");
     }
     
+    currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+    if (currentBots >= maxBots)
+    {
+        if (redbots_manager_debug.BoolValue)
+            PrintToChatAll("[BuyRobot_DoBotBuy] Team RED reached max capacity during purchase");
+        return;
+    }
+    
     if (GetMaxEntities() - GetEntityCount() < 3) return;
     if (GetClientCount() + 1 > MaxClients) return;
-    if (BuyRobot_GetPurchasedCount() + 1 > g_cvBuyMaxBots.IntValue) return;
     if (g_iBuyPlayerPoints[bot] < price) return;
     
     g_iBuyPlayerPoints[bot] -= price;
@@ -6421,11 +6517,33 @@ bool BuyRobot_CanUseMenu(int client)
     return false;
 }
 
+int BuyRobot_GetMaxBotsForTeam(TFTeam team)
+{
+    if (team == TFTeam_Red)
+        return g_cvBuyMaxBotsRed.IntValue;
+    else if (team == TFTeam_Blue)
+        return g_cvBuyMaxBotsBlue.IntValue;
+    
+    return 0;
+}
+
+int BuyRobot_GetPurchasedCountForTeam(TFTeam team)
+{
+    int count = 0;
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i] && TF2_GetClientTeam(i) == team)
+            count++;
+    }
+    return count;
+}
+
 int BuyRobot_GetPurchasedCount()
 {
     int count = 0;
     for (int i = 1; i <= MaxClients; i++)
-        if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i]) count++;
+        if (IsClientInGame(i) && g_bBuyIsPurchasedRobot[i]) 
+            count++;
     return count;
 }
 
@@ -6919,16 +7037,31 @@ public int MenuHandler_AddRobotsMain(Menu menu, MenuAction action, int param1, i
 
 void ShowAddRobotsClassMenu(int client, int category)
 {
-    int maxBots = g_cvBuyMaxBots.IntValue;
-    int currentBots = BuyRobot_GetPurchasedCount();
+    int maxBots;
+    int currentBots;
+    TFTeam team = g_tempAddTeam;
+    
+    if (team == TFTeam_Red)
+    {
+        maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+        currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+    }
+    else
+    {
+        maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+        currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
+    }
+    
     int remainingSlots = maxBots - currentBots;
     
     if (category == BUY_CATEGORY_BOSS)
     {
-        int bossCount = GetCurrentBossCountForTeam(g_tempAddTeam);
-        if (bossCount >= g_cvMaxBossPerTeam.IntValue)
+        int bossCount = GetCurrentBossCountForTeam(team);
+        int maxBoss = g_cvMaxBossPerTeam.IntValue;
+        if (bossCount >= maxBoss)
         {
-            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This team already has a Boss robot! Only 1 Boss allowed per team.");
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This team already has \x07FFD700%d/%d\x01 Boss robots! Max %d allowed per team.", 
+                bossCount, maxBoss, maxBoss);
             ShowAddRobotsMainMenu(client);
             return;
         }
@@ -6985,39 +7118,39 @@ void ShowAddRobotsClassMenu(int client, int category)
     char display[64], info[64];
     
     Format(display, sizeof(display), "%sScout%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "scout %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "scout %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sSoldier%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "soldier %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "soldier %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sPyro%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "pyro %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "pyro %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sDemoman%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "demoman %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "demoman %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sHeavy%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "heavyweapons %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "heavyweapons %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sEngineer%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "engineer %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "engineer %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sMedic%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "medic %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "medic %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sSniper%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "sniper %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "sniper %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     Format(display, sizeof(display), "%sSpy%s", categoryPrefix, categorySuffix);
-    Format(info, sizeof(info), "spy %d %d %d", category, botCount, view_as<int>(g_tempAddTeam));
+    Format(info, sizeof(info), "spy %d %d %d", category, botCount, view_as<int>(team));
     menu.AddItem(info, display);
     
     menu.ExitBackButton = true;
@@ -7043,12 +7176,24 @@ public int MenuHandler_AddRobotsClass(Menu menu, MenuAction action, int param1, 
         teamInt = StringToInt(parts[3]);
         TFTeam team = view_as<TFTeam>(teamInt);
         
+        int maxBots = BuyRobot_GetMaxBotsForTeam(team);
+        int currentBots = BuyRobot_GetPurchasedCountForTeam(team);
+        
+        if (currentBots + botCount > maxBots)
+        {
+            PrintToChat(client, "\x0732CD32[Buy Robot]\x01 Cannot add %d robot(s). Team limit is %d (currently %d)", botCount, maxBots, currentBots);
+            ShowAddRobotsClassMenu(client, category);
+            return 0;
+        }
+        
         if (category == BUY_CATEGORY_BOSS)
         {
             int bossCount = GetCurrentBossCountForTeam(team);
-            if (bossCount >= g_cvMaxBossPerTeam.IntValue)
+            int maxBoss = g_cvMaxBossPerTeam.IntValue;
+            if (bossCount >= maxBoss)
             {
-                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This team already has a Boss robot! Only 1 Boss allowed per team.");
+                PrintToChat(client, "\x0732CD32[Buy Robot]\x01 This team already has \x07FFD700%d/%d\x01 Boss robots! Max %d allowed per team.", 
+                    bossCount, maxBoss, maxBoss);
                 ShowAddRobotsClassMenu(client, category);
                 return 0;
             }
@@ -7133,8 +7278,19 @@ public int MenuHandler_AddRobotsContinue(Menu menu, MenuAction action, int param
         {
             Menu teamMenu = new Menu(MenuHandler_AddRobotsTeam);
             teamMenu.SetTitle("Add Robots - Choose Team");
-            teamMenu.AddItem("red", "Mann Co. Team");
-            teamMenu.AddItem("blue", "Invaders Team");
+            
+            int redBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
+            int redMax = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
+            int blueBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
+            int blueMax = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
+            
+            char display[128];
+            Format(display, sizeof(display), "Mann Co. (RED) - %d/%d", redBots, redMax);
+            teamMenu.AddItem("red", display);
+            
+            Format(display, sizeof(display), "Invaders (BLUE) - %d/%d", blueBots, blueMax);
+            teamMenu.AddItem("blue", display);
+            
             teamMenu.ExitButton = true;
             teamMenu.Display(client, MENU_TIME_FOREVER);
         }
@@ -8279,7 +8435,6 @@ void BuyRobot_OnMapStart()
     
     g_flLastSendTime = 0.0;
     g_flLastSendTime2 = 0.0;
-    g_flLastAnySendTime = 0.0;
     g_iWaveBonusCounter = 0;
     g_iWaveBonusCounter2 = 0;
 
