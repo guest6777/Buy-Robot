@@ -5560,20 +5560,6 @@ public Action Timer_GrayMann(Handle timer)
     return Plugin_Continue;
 }
 
-int GetTotalBotsCount()
-{
-    int count = 0;
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (!IsClientInGame(i))
-            continue;
-        
-        if (IsFakeClient(i) && g_bBuyIsPurchasedRobot[i] && (TF2_GetClientTeam(i) == TFTeam_Red || TF2_GetClientTeam(i) == TFTeam_Blue))
-            count++;
-    }
-    return count;
-}
-
 void CheckAndSendSaxtonHale()
 {
     if (GameRules_GetRoundState() != RoundState_RoundRunning)
@@ -5583,7 +5569,7 @@ void CheckAndSendSaxtonHale()
     if (maxDefenders <= 0)
         return;
     
-    int maxBots = g_cvBuyMaxBotsRed.IntValue;
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availablePurchaseSlots = maxBots - currentBots;
     
@@ -5676,7 +5662,7 @@ void CheckAndSendSaxtonHale()
 
 void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = g_cvBuyMaxBotsRed.IntValue;
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Red);
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Red);
     int availableSlots = maxBots - currentBots;
     
@@ -5704,7 +5690,7 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < bossesToSend; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Red) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Red);
         
@@ -5716,7 +5702,7 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < giantsToSend; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Red) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Red);
         
@@ -5731,7 +5717,7 @@ void SendSaxtonHale(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < normalToAdd; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Red) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Red);
         
@@ -5836,7 +5822,7 @@ void CheckAndSendGrayMann()
     if (availableSlots <= 0)
         return;
     
-    int maxBots = g_cvBuyMaxBotsBlue.IntValue;
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availablePurchaseSlots = maxBots - currentBots;
     
@@ -5932,7 +5918,7 @@ void CheckAndSendGrayMann()
 
 void SendGrayMann(int count, int giantsToSend, int bossesToSend)
 {
-    int maxBots = g_cvBuyMaxBotsBlue.IntValue;
+    int maxBots = BuyRobot_GetMaxBotsForTeam(TFTeam_Blue);
     int currentBots = BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue);
     int availableSlots = maxBots - currentBots;
     
@@ -5960,7 +5946,7 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < bossesToSend; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "Boss", true, TFTeam_Blue);
         
@@ -5972,7 +5958,7 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < giantsToSend; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "Giant", true, TFTeam_Blue);
         
@@ -5987,7 +5973,7 @@ void SendGrayMann(int count, int giantsToSend, int bossesToSend)
     
     for (int i = 0; i < normalToAdd; i++)
     {
-        if (GetTotalBotsCount() >= maxBots) break;
+        if (BuyRobot_GetPurchasedCountForTeam(TFTeam_Blue) >= maxBots) break;
         int selected = GetRandomInt(0, sizeof(classes) - 1);
         BuyRobot_CreateBot(classes[selected], 0, 1, "", true, TFTeam_Blue);
         
@@ -6107,12 +6093,12 @@ public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcas
     
     if (g_cvBuySaxtonAI.BoolValue)
     {
-        CreateTimer(0.5, Timer_SaxtonAI, _, TIMER_REPEAT);
+        CreateTimer(0.1, Timer_SaxtonAI, _, TIMER_REPEAT);
     }
     
     if (g_cvGrayMannAI.BoolValue)
     {
-        CreateTimer(0.5, Timer_GrayMann, _, TIMER_REPEAT);
+        CreateTimer(0.1, Timer_GrayMann, _, TIMER_REPEAT);
     }
     
     if (g_cvBuyWaveBonusEnable.BoolValue)
