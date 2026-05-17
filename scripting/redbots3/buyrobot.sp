@@ -6093,12 +6093,12 @@ public void BuyRobot_WaveBegin(Event event, const char[] name, bool dontBroadcas
     
     if (g_cvBuySaxtonAI.BoolValue)
     {
-        CreateTimer(0.1, Timer_SaxtonAI, _, TIMER_REPEAT);
+        CreateTimer(0.2, Timer_SaxtonAI, _, TIMER_REPEAT);
     }
     
     if (g_cvGrayMannAI.BoolValue)
     {
-        CreateTimer(0.1, Timer_GrayMann, _, TIMER_REPEAT);
+        CreateTimer(0.2, Timer_GrayMann, _, TIMER_REPEAT);
     }
     
     if (g_cvBuyWaveBonusEnable.BoolValue)

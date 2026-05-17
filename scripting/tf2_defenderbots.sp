@@ -962,7 +962,7 @@ public Action Command_Votebots(int client, int args)
             }
             
             ReplyToCommand(client, "%s Choose your bot team lineup first! Use command !choosebotteam or !cbt", PLUGIN_PREFIX);
-            return Plugin_Handled;
+            return Plugin_BadLoad;
         }
     }
     
@@ -1071,8 +1071,8 @@ public Action Command_JoinBluePlayWithBots(int client, int args)
 	
 	if (TF2_GetClientTeam(client) != TFTeam_Blue && TF2_GetClientTeam(client) != TFTeam_Spectator)
 	{
-		ReplyToCommand(client, "%s Your team is not allowed to use this.", PLUGIN_PREFIX);
-		return Plugin_Handled;
+    		ReplyToCommand(client, "%s Your team is not allowed to use this.", PLUGIN_PREFIX);
+	        return Plugin_Handled;
 	}
 	
 	if (GetHumanAndDefenderBotCount(TFTeam_Red) > 0)
@@ -1081,46 +1081,7 @@ public Action Command_JoinBluePlayWithBots(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	g_adtChosenBotClasses.Clear();
-	int defenderTeamSize = redbots_manager_defender_team_size.IntValue;
-	
-	switch (redbots_manager_bot_lineup_mode.IntValue)
-	{
-		case BOT_LINEUP_MODE_RANDOM:
-		{
-			for (int i = 0; i < defenderTeamSize; i++)
-				g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(1, 9)]);
-		}
-		case BOT_LINEUP_MODE_PREFERENCE, BOT_LINEUP_MODE_PREFERENCE_CHOOSE:
-		{
-			ArrayList adtClassPref = new ArrayList(TF2_CLASS_MAX_NAME_LENGTH);
-			CollectPlayerBotClassPreferences(adtClassPref);
-			
-			if (adtClassPref.Length > 0)
-			{
-				for (int i = 0; i < defenderTeamSize; i++)
-				{
-					char class[TF2_CLASS_MAX_NAME_LENGTH];
-					adtClassPref.GetString(GetRandomInt(0, adtClassPref.Length - 1), class, sizeof(class));
-					g_adtChosenBotClasses.PushString(class);
-				}
-			}
-			else
-			{
-				for (int i = 0; i < defenderTeamSize; i++)
-					g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(1, 9)]);
-			}
-			
-			delete adtClassPref;
-		}
-		default:
-		{
-			for (int i = 0; i < defenderTeamSize; i++)
-				g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(1, 9)]);
-		}
-	}
-	
-	AddBotsFromChosenTeamComposition();
+	AddRandomDefenderBots(redbots_manager_defender_team_size.IntValue); //TODO: replace me with a smarter team comp
 	g_bBotsEnabled = true;
 	PrintToChatAll("%s You will play a game with bots.", PLUGIN_PREFIX);
 	
@@ -1325,7 +1286,7 @@ public Action Command_RedoBotTeamLineup(int client, int args)
     }
     
     //Solo players are always allowed to repick their bot lineup
-    g_bAllowBotTeamRedo = GetTeamHumanClientCount(view_as<int>(TFTeam_Red)) == 1;
+    g_bAllowBotTeamRedo = GetTeamHumanClientCount(TFTeam_Red) == 1;
     
     PrintToChatAll("%s %N has decided to repick the bot team lineup.", PLUGIN_PREFIX, client);
     LogAction(client, -1, "%L triggered defender bot redo", client);
@@ -1709,37 +1670,12 @@ public Action Timer_CheckBotImbalance(Handle timer)
             if (GameRules_GetRoundState() != RoundState_BetweenRounds && GameRules_GetRoundState() != RoundState_RoundRunning)
                 return Plugin_Stop;
             
-            int humans = 0;
-            int defBots = 0;
-            
-            for (int i = 1; i <= MaxClients; i++)
-            {
-                if (!IsClientInGame(i))
-                    continue;
-                
-                if (g_bBuyIsPurchasedRobot[i])
-                    continue;
-                
-                if (TF2_GetClientTeam(i) == TFTeam_Red)
-                {
-                    if (!IsFakeClient(i))
-                        humans++;
-                    else if (g_bIsDefenderBot[i])
-                        defBots++;
-                }
-            }
-            
-            int defenderCount = humans + defBots;
-            
-            if (g_adtChosenBotClasses.Length == 0)
-            {
-                UpdateChosenBotTeamComposition();
-            }
+            int defenderCount = GetHumanAndDefenderBotCount(TFTeam_Red);
             
             if (defenderCount < redbots_manager_defender_team_size.IntValue)
             {
                 int amount = redbots_manager_defender_team_size.IntValue - defenderCount;
-                AddBotsFromChosenTeamComposition();  // Mudado de AddBotsBasedOnLineupMode
+                AddBotsBasedOnLineupMode(amount);
             }
         }
         case MANAGER_MODE_AUTO_BOTS:
@@ -1747,37 +1683,12 @@ public Action Timer_CheckBotImbalance(Handle timer)
             if (GameRules_GetRoundState() != RoundState_RoundRunning)
                 return Plugin_Stop;
             
-            int humans = 0;
-            int defBots = 0;
-            
-            for (int i = 1; i <= MaxClients; i++)
-            {
-                if (!IsClientInGame(i))
-                    continue;
-                
-                if (g_bBuyIsPurchasedRobot[i])
-                    continue;
-                
-                if (TF2_GetClientTeam(i) == TFTeam_Red)
-                {
-                    if (!IsFakeClient(i))
-                        humans++;
-                    else if (g_bIsDefenderBot[i])
-                        defBots++;
-                }
-            }
-            
-            int defenderCount = humans + defBots;
-            
-            if (g_adtChosenBotClasses.Length == 0)
-            {
-                UpdateChosenBotTeamComposition();
-            }
+            int defenderCount = GetHumanAndDefenderBotCount(TFTeam_Red);
             
             if (defenderCount < redbots_manager_defender_team_size.IntValue)
             {
                 int amount = redbots_manager_defender_team_size.IntValue - defenderCount;
-                AddBotsFromChosenTeamComposition();  // Mudado de AddBotsBasedOnLineupMode
+                AddBotsBasedOnLineupMode(amount);
             }
         }
     }
@@ -2113,29 +2024,9 @@ void ManageDefenderBots(bool bManage, bool bAddBots = true)
 
 void AddBotsBasedOnLineupMode(int count, bool bAdjustTime = true)
 {
-    int currentHumans = 0;
-    int currentDefenderBots = 0;
-    
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (!IsClientInGame(i) || g_bBuyIsPurchasedRobot[i])
-            continue;
-        
-        if (TF2_GetClientTeam(i) == TFTeam_Red)
-        {
-            if (IsFakeClient(i) && g_bIsDefenderBot[i])
-                currentDefenderBots++;
-            else if (!IsFakeClient(i))
-                currentHumans++;
-        }
-    }
-    
-    int currentTotal = currentHumans + currentDefenderBots;
+    int currentBots = GetDefenderBotCount(TFTeam_Red);
     int maxBots = redbots_manager_defender_team_size.IntValue;
-    int availableSlots = maxBots - currentTotal;
-    
-    if (availableSlots <= 0)
-        return;
+    int availableSlots = maxBots - currentBots;
     
     int actualCount = count;
     if (actualCount > availableSlots)
@@ -2387,7 +2278,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
     
     if (g_bBotClassesLocked)
     {
-        if (caller != -1 && !g_bBuyIsPurchasedRobot[caller])
+        if (caller != -1)
             PrintToChat(caller, "%s Bot team lineup is locked for the next game.");
         
         return;
@@ -2395,7 +2286,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
     
     if (GetCountOfPlayersChoosingBotClasses() > 0)
     {
-        if (caller != -1 && !g_bBuyIsPurchasedRobot[caller])
+        if (caller != -1)
             PrintToChat(caller, "%s Someone is currently choosing the bot team lineup.");
         
         return;
@@ -2408,10 +2299,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
     
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (!IsClientInGame(i))
-            continue;
-        
-        if (g_bBuyIsPurchasedRobot[i])
+        if (!IsClientInGame(i) || g_bBuyIsPurchasedRobot[i])
             continue;
         
         if (TF2_GetClientTeam(i) == TFTeam_Red)
@@ -2434,7 +2322,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
         case BOT_LINEUP_MODE_RANDOM:
         {
             for (int i = 1; i <= newBotsToAdd; i++)
-                g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(view_as<int>(TFClass_Scout), view_as<int>(TFClass_Engineer))]);
+                g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(TFClass_Scout, TFClass_Engineer)]);
         }
         case BOT_LINEUP_MODE_PREFERENCE, BOT_LINEUP_MODE_PREFERENCE_CHOOSE:
         {
@@ -2446,8 +2334,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
             {
                 for (int i = 1; i <= newBotsToAdd; i++)
                 {
-                    char class[TF2_CLASS_MAX_NAME_LENGTH];
-                    adtClassPref.GetString(GetRandomInt(0, adtClassPref.Length - 1), class, sizeof(class));
+                    char class[TF2_CLASS_MAX_NAME_LENGTH]; adtClassPref.GetString(GetRandomInt(0, adtClassPref.Length - 1), class, sizeof(class));
                     
                     g_adtChosenBotClasses.PushString(class);
                 }
@@ -2455,7 +2342,7 @@ void UpdateChosenBotTeamComposition(int caller = -1)
             else
             {
                 for (int i = 1; i <= newBotsToAdd; i++)
-                    g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(view_as<int>(TFClass_Scout), view_as<int>(TFClass_Engineer))]);
+                    g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(TFClass_Scout, TFClass_Engineer)]);
             }
             
             delete adtClassPref;
@@ -2468,63 +2355,30 @@ void UpdateChosenBotTeamComposition(int caller = -1)
     
     if (caller != -1 && !g_bBuyIsPurchasedRobot[caller])
         PrintToChatAll("%s %N changed the bot team lineup", PLUGIN_PREFIX, caller);
-    else if (caller == -1)
+    else
         PrintToChatAll("%s Bot lineup changed", PLUGIN_PREFIX);
 }
 
 void AddBotsFromChosenTeamComposition()
 {
-	int currentHumans = 0;
-	int currentDefenderBots = 0;
-	
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i) || g_bBuyIsPurchasedRobot[i])
-			continue;
-		
-		if (TF2_GetClientTeam(i) == TFTeam_Red)
-		{
-			if (IsFakeClient(i) && g_bIsDefenderBot[i])
-				currentDefenderBots++;
-			else if (!IsFakeClient(i))
-				currentHumans++;
-		}
-	}
-	
-	int currentTotal = currentHumans + currentDefenderBots;
-	int maxBots = redbots_manager_defender_team_size.IntValue;
-	int availableSlots = maxBots - currentTotal;
-	
-	if (availableSlots <= 0)
-	{
-		g_bBotClassesLocked = false;
-		return;
-	}
-	
-	if (g_adtChosenBotClasses.Length == 0)
-	{
-		for (int i = 0; i < availableSlots; i++)
-			g_adtChosenBotClasses.PushString(g_sRawPlayerClassNames[GetRandomInt(1, 9)]);
-	}
-	
-	char class[TF2_CLASS_MAX_NAME_LENGTH];
-	int botsAdded = 0;
-	int lineupIndex = 0;
-	
-	while (botsAdded < availableSlots)
-	{
-		if (lineupIndex >= g_adtChosenBotClasses.Length)
-			lineupIndex = 0;
-		
-		g_adtChosenBotClasses.GetString(lineupIndex, class, sizeof(class));
-		AddDefenderTFBot(1, class, "red", "expert");
-		botsAdded++;
-		lineupIndex++;
-	}
-	
-	g_bBotClassesLocked = false;
-	
-	PrintToChatAll("%s Added %d bot(s).", PLUGIN_PREFIX, botsAdded);
+    char class[TF2_CLASS_MAX_NAME_LENGTH];
+    int currentBots = GetDefenderBotCount(TFTeam_Red);
+    int maxBots = redbots_manager_defender_team_size.IntValue;
+    int availableSlots = maxBots - currentBots;
+    int botsToAdd = g_adtChosenBotClasses.Length;
+    
+    if (botsToAdd > availableSlots)
+        botsToAdd = availableSlots;
+    
+    for (int i = 0; i < botsToAdd; i++)
+    {
+        g_adtChosenBotClasses.GetString(i, class, sizeof(class));
+        AddDefenderTFBot(1, class, "red", "expert");
+    }
+    
+    g_bBotClassesLocked = false;
+    
+    PrintToChatAll("%s Added %d bot(s).", PLUGIN_PREFIX, botsToAdd);
 }
 
 eMissionDifficulty GetMissionDifficulty()
