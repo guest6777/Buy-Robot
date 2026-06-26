@@ -1955,13 +1955,14 @@ static bool ShouldUseTeleporter(int client)
         if (!redbots_manager_bot_use_upgrades.BoolValue)
             return true;
         
-        if (!TF2_IsInUpgradeZone(client) && 
-            !g_bHasUpgraded[client] &&
-            ActionsManager.LookupEntityActionByName(client, "DefenderUpgrade") == INVALID_ACTION &&
+        if (ActionsManager.LookupEntityActionByName(client, "DefenderUpgrade") != INVALID_ACTION ||
             ActionsManager.LookupEntityActionByName(client, "DefenderGotoUpgrade") != INVALID_ACTION)
         {
             return false;
         }
+        
+        if (!g_bHasUpgraded[client])
+            return false;
         
         return true;
     }

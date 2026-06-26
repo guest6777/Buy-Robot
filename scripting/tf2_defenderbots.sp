@@ -3273,7 +3273,6 @@ void ResetAllEngineerNests2(int client)
     m_flNextHelpCheck[client] = 0.0;
     g_bGoingToGrabBuilding[client] = false;
     g_bIsHelpingTeammate[client] = false;
-    g_bEngineerHelpDisabled[client] = false;
     g_iBotEntranceSpot[client] = -1;
     m_hBuildingToGrab[client] = INVALID_ENT_REFERENCE;
 
