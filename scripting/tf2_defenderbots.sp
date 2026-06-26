@@ -3239,6 +3239,53 @@ void CleanupEngineerNest(int client)
     m_ctSentrySafe[client] = -1.0;
 }
 
+void ResetAllEngineerNests()
+{
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (!IsClientInGame(i) || !IsPlayerAlive(i))
+            continue;
+        
+        if (TF2_GetPlayerClass(i) != TFClass_Engineer)
+            continue;
+        
+        if (g_bIsDefenderBot[i] || g_bBuyIsPurchasedRobot[i])
+        {
+            ResetAllEngineerNests2(i);
+        }
+    }
+}
+
+void ResetAllEngineerNests2(int client)
+{
+    m_aNestArea[client] = NULL_AREA;
+    m_ctFindNestHint[client] = -1.0;
+    m_ctAdvanceNestSpot[client] = -1.0;
+    m_ctSentrySafe[client] = -1.0;
+    m_ctSentryCooldown[client] = -1.0;
+    m_ctDispenserSafe[client] = -1.0;
+    m_ctDispenserCooldown[client] = -1.0;
+    m_ctTeleporterEntranceSafe[client] = -1.0;
+    m_ctTeleporterEntranceCooldown[client] = -1.0;
+    m_ctTeleporterExitSafe[client] = -1.0;
+    m_ctTeleporterExitCooldown[client] = -1.0;
+    m_ctRecomputePathMvMEngiIdle[client] = -1.0;
+    m_flNextHelpCheck[client] = 0.0;
+    g_bGoingToGrabBuilding[client] = false;
+    g_bIsHelpingTeammate[client] = false;
+    g_bEngineerHelpDisabled[client] = false;
+    g_iBotEntranceSpot[client] = -1;
+    m_hBuildingToGrab[client] = INVALID_ENT_REFERENCE;
+
+    DetonateObjectOfType(client, TFObject_Sentry);
+    DetonateObjectOfType(client, TFObject_Dispenser);
+    DetonateObjectOfType(client, TFObject_Teleporter, TFObjectMode_Exit);
+    
+#if defined EXTRA_PLUGINBOT
+    g_arrPluginBot[client].bPathing = false;
+#endif
+}
+
 public Action Timer_WelcomeMessage(Handle timer, int userid)
 {
     int client = GetClientOfUserId(userid);

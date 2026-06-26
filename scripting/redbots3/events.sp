@@ -50,60 +50,64 @@ public Action Timer_ReapplyHat(Handle timer, int client)
 
 static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadcast)
 {
-	m_iWaveFailCounterTick++;
-	
-	if (redbots_manager_kick_bots.BoolValue)
-	{
-		RemoveAllDefenderBots("BotManager3: Wave failed!");
-		ManageDefenderBots(false);
-		CreateTimer(0.1, Timer_UpdateChosenBotTeamComposition, _, TIMER_FLAG_NO_MAPCHANGE);
-		PrintToChatAll("%s Use command !viewbotlineup to view the next bot team composition", PLUGIN_PREFIX);
-	}
-	
-	if (redbots_manager_mode.IntValue == MANAGER_MODE_READY_BOTS)
-	{
-		g_flNextReadyTime = GetGameTime() + redbots_manager_ready_cooldown.FloatValue;
-		
-		if (m_iWaveFailCounterTick > 3)
-		{
-			g_flNextReadyTime = 0.0;
-		}
-	}
-	
-	if (redbots_manager_bot_lineup_mode.IntValue == BOT_LINEUP_MODE_CHOOSE)
-	{
-		FreeChosenBotTeam();
-	}
-	
-	CreateTimer(0.1, Timer_WaveFailure, _, TIMER_FLAG_NO_MAPCHANGE);
+    ResetAllEngineerNests();
+    
+    m_iWaveFailCounterTick++;
+    
+    if (redbots_manager_kick_bots.BoolValue)
+    {
+        RemoveAllDefenderBots("BotManager3: Wave failed!");
+        ManageDefenderBots(false);
+        CreateTimer(0.1, Timer_UpdateChosenBotTeamComposition, _, TIMER_FLAG_NO_MAPCHANGE);
+        PrintToChatAll("%s Use command !viewbotlineup to view the next bot team composition", PLUGIN_PREFIX);
+    }
+    
+    if (redbots_manager_mode.IntValue == MANAGER_MODE_READY_BOTS)
+    {
+        g_flNextReadyTime = GetGameTime() + redbots_manager_ready_cooldown.FloatValue;
+        
+        if (m_iWaveFailCounterTick > 3)
+        {
+            g_flNextReadyTime = 0.0;
+        }
+    }
+    
+    if (redbots_manager_bot_lineup_mode.IntValue == BOT_LINEUP_MODE_CHOOSE)
+    {
+        FreeChosenBotTeam();
+    }
+    
+    CreateTimer(0.1, Timer_WaveFailure, _, TIMER_FLAG_NO_MAPCHANGE);
 }
 
 static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroadcast)
 {
-	if (redbots_manager_kick_bots.BoolValue)
-	{
-		RemoveAllDefenderBots("BotManager3: Wave complete!", IsFinalWave());
-		ManageDefenderBots(false);
-		CreateTimer(0.1, Timer_UpdateChosenBotTeamComposition, _, TIMER_FLAG_NO_MAPCHANGE);
-		PrintToChatAll("%s Use command !viewbotlineup to view the next bot team composition", PLUGIN_PREFIX);
-	}
+    ResetAllEngineerNests();
+    
+    if (redbots_manager_kick_bots.BoolValue)
+    {
+        RemoveAllDefenderBots("BotManager3: Wave complete!", IsFinalWave());
+        ManageDefenderBots(false);
+        CreateTimer(0.1, Timer_UpdateChosenBotTeamComposition, _, TIMER_FLAG_NO_MAPCHANGE);
+        PrintToChatAll("%s Use command !viewbotlineup to view the next bot team composition", PLUGIN_PREFIX);
+    }
 
 #if defined MOD_REQUEST_CREDITS
-	bool bRequestCredits = redbots_manager_bot_request_credits.BoolValue;
+    bool bRequestCredits = redbots_manager_bot_request_credits.BoolValue;
 #endif
-	
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && g_bIsDefenderBot[i] && !g_bBuyIsPurchasedRobot[i])
-		{
-			ResetIntentionInterface(i);
-			
+    
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (IsClientInGame(i) && g_bIsDefenderBot[i] && !g_bBuyIsPurchasedRobot[i])
+        {
+            ResetIntentionInterface(i);
+            
 #if defined MOD_REQUEST_CREDITS
-			if (bRequestCredits)
-				FakeClientCommand(i, "sm_requestcredits");
+            if (bRequestCredits)
+                FakeClientCommand(i, "sm_requestcredits");
 #endif
-		}
-	}
+        }
+    }
 }
 
 static void Event_RevivePlayerNotify(Event event, const char[] name, bool dontBroadcast)
