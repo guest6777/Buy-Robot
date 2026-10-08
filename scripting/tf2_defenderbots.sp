@@ -228,11 +228,11 @@ Address g_pMannVsMachineUpgrades;
 
 public Plugin myinfo =
 {
-	name = "Defender TFBots",
-	author = "Officer Spy",
-	description = "TFBots that play Mann vs. Machine",
-	version = "1.5.5",
-	url = "https://github.com/OfficerSpy/TF2-MvM-Defender-TFBots"
+	name = "Defender TFBots with Buy Robot",
+	author = "Officer Spy, guest6777",
+	description = "TFBots that play Mann vs. Machine with extension Buy Robot",
+	version = "1.4",
+	url = "https://github.com/guest6777/Buy-Robot"
 };
 
 public void OnPluginStart()
